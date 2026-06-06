@@ -1,0 +1,11 @@
+# macOS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# nichts was hier nicht hingehoert
+*.env
+.env.*
+*.kubeconfig
+secrets/
+*.log
