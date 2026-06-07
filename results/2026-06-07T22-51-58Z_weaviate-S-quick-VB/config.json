@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-S-quick-VB",
+  "description": "weaviate, Stufe S quick (50k Reviews), Variante B (Referencing)",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "B",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 100,
+    "concurrency": 1
+  }
+}

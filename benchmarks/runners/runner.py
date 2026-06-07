@@ -160,12 +160,43 @@ def load_corpus_chunks(stufe_dir: Path, dim: int):
     return out
 
 
-def load_queries(stufe_dir: Path):
+def load_queries(stufe_dir: Path, cfg: dict | None = None):
+    """Laed queries.npy und die zur Workload passende Ground Truth.
+
+    Default: ground_truth_ids.npy (Brute-Force-Cosine ueber den ganzen Korpus).
+    Bei cfg.filter setzt: ground_truth_filter_<spec>_ids.npy
+    Bei cfg.hybrid gesetzt: ground_truth_hybrid_alpha_<NN>_ids.npy
+    Fehlt die spezialisierte GT, faellt's auf die Default-GT zurueck und
+    setzt eine Warnung in den Notes (Konsumenten muessen das interpretieren).
+    """
     import numpy as np
     qd = stufe_dir / "queries"
     q = np.load(qd / "queries.npy")
-    gt = np.load(qd / "ground_truth_ids.npy")
-    return q, gt
+
+    gt_path = qd / "ground_truth_ids.npy"
+    note = None
+    if cfg:
+        f = cfg.get("filter") or {}
+        if f:
+            spec_parts = [f"{k}_{v}" for k, v in sorted(f.items())]
+            suffix = "_".join(spec_parts)
+            cand = qd / f"ground_truth_filter_{suffix}_ids.npy"
+            if cand.exists():
+                gt_path = cand
+            else:
+                note = f"filter-spezifische GT fehlt ({cand.name}) -- nutze Default-GT"
+        h = cfg.get("hybrid") or {}
+        if h:
+            alpha = h.get("alpha", 0.5)
+            suffix = f"alpha_{int(round(alpha*100)):02d}"
+            cand = qd / f"ground_truth_hybrid_{suffix}_ids.npy"
+            if cand.exists():
+                gt_path = cand
+            else:
+                note = f"hybrid-spezifische GT fehlt ({cand.name}) -- nutze Default-GT"
+
+    gt = np.load(gt_path)
+    return q, gt, gt_path.name, note
 
 
 def load_query_meta(stufe_dir: Path) -> dict | None:
@@ -230,7 +261,7 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int):
 
     stufe_dir = demodata_dir / cfg["stufe"]
     corpus = load_corpus_chunks(stufe_dir, dim)
-    queries, ground_truth = load_queries(stufe_dir)
+    queries, ground_truth, gt_file, gt_note = load_queries(stufe_dir, cfg)
 
     has_metadata = any(meta is not None for _, _, meta in corpus)
     n_vec = sum(len(c[0]) for c in corpus)
@@ -268,6 +299,9 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int):
         insert_s = time.time() - t0
         notes["insert_time_s"] = round(insert_s, 2)
         notes["has_metadata"] = has_metadata
+        notes["gt_file"] = gt_file
+        if gt_note:
+            notes["gt_note"] = gt_note
 
         print(f"  build index...", flush=True)
         build_s = adapter.build_index()

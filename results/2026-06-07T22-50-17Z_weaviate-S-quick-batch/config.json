@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-S-quick-batch",
+  "description": "weaviate, Stufe S quick (50k Reviews), Variante A, batch concurrency=8",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 100,
+    "concurrency": 8
+  }
+}
