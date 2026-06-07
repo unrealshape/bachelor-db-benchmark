@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-T-topk-VB",
+  "description": "Weaviate, Stufe T, Variante B (Referencing) -- topk",
+  "db": "weaviate",
+  "stufe": "T",
+  "dim": 384,
+  "variant": "B",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 500,
+    "concurrency": 1
+  }
+}

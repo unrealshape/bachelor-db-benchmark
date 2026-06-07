@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-T2-latency",
+  "description": "Weaviate, Stufe T2 (groesseres Dev-Smoke) -- Stabilisierungs-Lauf",
+  "db": "weaviate",
+  "stufe": "T2",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 128,
+      "ef_construction": 256,
+      "M": 32
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "run_id": "2026-06-07T16-08-21Z_pgvector-T-batch-c8",
+  "config_name": "pgvector-T-batch-c8",
+  "started_at": "2026-06-07T16:08:21Z",
+  "finished_at": "2026-06-07T16:08:46Z",
+  "duration_s": 7225,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "T",
+    "n_vectors": 20000,
+    "dim": 384,
+    "variant": "A",
+    "size_gb": 0.1
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    },
+    "build_time_s": 5.36,
+    "size_on_disk_mb": 39.0546875
+  },
+  "workload": {
+    "profile": "batch",
+    "n_queries": 500,
+    "concurrency": 8
+  },
+  "metrics": {
+    "throughput_qps": 448.2,
+    "latency_ms_mean": 17.5,
+    "latency_ms_p50": 17.18,
+    "latency_ms_p90": 19.74,
+    "latency_ms_p99": 24.61,
+    "recall_at_1": 0.994,
+    "recall_at_10": 0.9954,
+    "recall_at_100": 0.64,
+    "precision_at_10": 0.9954,
+    "ndcg_at_10": 0.9971
+  },
+  "resources": {
+    "cpu_avg_cores": 0.005,
+    "mem_avg_mb": 73.0,
+    "cpu_peak_cores": 0.005,
+    "mem_peak_mb": 73.0,
+    "samples": 4
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "insert_time_s": 6.47,
+    "has_metadata": true,
+    "n_queries_executed": 500,
+    "mode": "real"
+  }
+}

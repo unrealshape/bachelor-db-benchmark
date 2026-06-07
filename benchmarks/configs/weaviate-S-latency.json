@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-S-latency",
+  "description": "Weaviate, Stufe S, Single-Query Latenz",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 1
+  }
+}

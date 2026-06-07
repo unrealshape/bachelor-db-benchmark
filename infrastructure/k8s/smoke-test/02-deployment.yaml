@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smoke-nginx
+  namespace: smoke
+  labels:
+    app: smoke-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smoke-nginx
+  template:
+    metadata:
+      labels:
+        app: smoke-nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - 'echo "k3d smoke ok @ $(date -u +%FT%TZ)" > /usr/share/nginx/html/index.html'
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: smoke-pvc

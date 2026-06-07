@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-S-tune-extended",
+  "description": "Weaviate HNSW, Stufe S -- erweitertes Tuning (mehr Recall, deutlich teurere Index-Bauzeit)",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 128,
+      "ef_construction": 256,
+      "M": 32
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 1
+  }
+}

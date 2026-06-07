@@ -1,11 +1,48 @@
-# macOS / IDE
+# macOS / IDE Krempel
 .DS_Store
+*.swp
+*.swo
 .idea/
 .vscode/
+*.iml
 
-# nichts was hier nicht hingehoert
+# Kubernetes / Secrets -- niemals committen
+*.kubeconfig
+kubeconfig
+secrets/
+*.pem
+*.key
+*.crt
+
+# Env Files
 *.env
 .env.*
-*.kubeconfig
-secrets/
+!.env.example
+
+# Logs und temp
 *.log
+logs/
+tmp/
+.tmp/
+
+# Build-Output (kommt spaeter)
+dist/
+build/
+node_modules/
+
+# Notizen die nicht ins Repo sollen
+scratch/
+internal/draft/
+
+# Demodata-Cache: lokal generierte Embeddings, gehoeren nicht ins Repo
+.demodata/
+demodata-cache/
+
+# Lokale Tool-Artefakte
+.claude-flow/
+.swarm/
+ruvector.db
+agentdb.rvf
+agentdb.rvf.lock
+.venv/
+__pycache__/

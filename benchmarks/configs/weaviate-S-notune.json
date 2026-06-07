@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-S-notune",
+  "description": "Weaviate HNSW, Stufe S -- ohne Tuning (minimale Params, zeigt schlechten Recall als Referenz)",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 10,
+      "ef_construction": 32,
+      "M": 8
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 1
+  }
+}

@@ -1,0 +1,34 @@
+# Chart: weaviate/weaviate 17.x
+
+image:
+  registry: cr.weaviate.io
+  repo: semitechnologies/weaviate
+  tag: "1.37.6"
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+resources:
+  requests:
+    cpu: "1"
+    memory: "4Gi"
+  limits:
+    cpu: "2"
+    memory: "8Gi"
+
+storage:
+  size: 50Gi
+  storageClassName: local-path
+
+authentication:
+  anonymous_access:
+    enabled: true
+
+service:
+  type: ClusterIP
+
+modules:
+  text2vec-contextionary:
+    enabled: false
+  text2vec-transformers:
+    enabled: false

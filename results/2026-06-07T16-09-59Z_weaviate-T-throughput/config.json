@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-T-throughput",
+  "description": "Weaviate, Stufe T, hoher Durchsatz (16 parallele Clients)",
+  "db": "weaviate",
+  "stufe": "T",
+  "dim": 384,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 16
+  }
+}

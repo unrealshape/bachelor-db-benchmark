@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: smoke-nginx
+  namespace: smoke
+spec:
+  selector:
+    app: smoke-nginx
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

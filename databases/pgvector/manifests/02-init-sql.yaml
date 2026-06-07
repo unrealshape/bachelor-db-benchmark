@@ -1,0 +1,16 @@
+# läuft beim ersten Bootstrap als Superuser
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgvector-init
+  namespace: db-pgvector
+data:
+  00_extension.sql: |
+    CREATE EXTENSION IF NOT EXISTS vector;
+  01_tuning.sql: |
+    ALTER SYSTEM SET shared_buffers = '2GB';
+    ALTER SYSTEM SET maintenance_work_mem = '1GB';
+    ALTER SYSTEM SET max_parallel_maintenance_workers = '2';
+    ALTER SYSTEM SET max_parallel_workers_per_gather = '2';
+    ALTER SYSTEM SET effective_cache_size = '6GB';
+    ALTER SYSTEM SET random_page_cost = '1.1';

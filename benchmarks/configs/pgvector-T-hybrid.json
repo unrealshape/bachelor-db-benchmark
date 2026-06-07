@@ -1,0 +1,24 @@
+{
+  "name": "pgvector-T-hybrid",
+  "description": "pgvector HNSW, Stufe T, Variante A, Hybrid Search (tsvector + Vektor, alpha=0.5)",
+  "db": "pgvector",
+  "stufe": "T",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "hybrid",
+  "hybrid": {
+    "alpha": 0.5
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 500,
+    "concurrency": 1
+  }
+}

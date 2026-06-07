@@ -1,0 +1,66 @@
+{
+  "run_id": "2026-06-07T16-09-35Z_weaviate-T-batch-c8",
+  "config_name": "weaviate-T-batch-c8",
+  "started_at": "2026-06-07T16:09:35Z",
+  "finished_at": "2026-06-07T16:09:58Z",
+  "duration_s": 7223,
+  "status": "ok",
+  "db": {
+    "name": "weaviate",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "T",
+    "n_vectors": 20000,
+    "dim": 384,
+    "variant": "A",
+    "size_gb": 0.1
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    },
+    "build_time_s": 1.02,
+    "size_on_disk_mb": 174.2
+  },
+  "workload": {
+    "profile": "batch",
+    "n_queries": 500,
+    "concurrency": 8
+  },
+  "metrics": {
+    "throughput_qps": 1035.4,
+    "latency_ms_mean": 7.63,
+    "latency_ms_p50": 6.75,
+    "latency_ms_p90": 12.14,
+    "latency_ms_p99": 18.42,
+    "recall_at_1": 0.988,
+    "recall_at_10": 0.9944,
+    "recall_at_100": 0.9614,
+    "precision_at_10": 0.9944,
+    "ndcg_at_10": 0.9964
+  },
+  "resources": {
+    "cpu_avg_cores": 0.192,
+    "mem_avg_mb": 184.0,
+    "cpu_peak_cores": 0.192,
+    "mem_peak_mb": 184.0,
+    "samples": 3
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "insert_time_s": 7.87,
+    "has_metadata": true,
+    "n_queries_executed": 500,
+    "mode": "real"
+  }
+}

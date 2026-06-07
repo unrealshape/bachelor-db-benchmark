@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S-quick",
+  "description": "pgvector HNSW, Stufe S, Quick-Smoke mit max 5000 Reviews + 100 Queries, kein Thesis-Material",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 100,
+    "concurrency": 1
+  }
+}

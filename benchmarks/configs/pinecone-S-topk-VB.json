@@ -1,0 +1,21 @@
+{
+  "name": "pinecone-S-topk-VB",
+  "description": "Pinecone Pod s1.x1, Stufe S, Variante B (Referencing) -- topk mit getrennten Metadaten",
+  "db": "pinecone",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "B",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "pod_type": "s1.x1",
+      "pods": 1,
+      "region": "aws-us-east-1"
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 1
+  }
+}

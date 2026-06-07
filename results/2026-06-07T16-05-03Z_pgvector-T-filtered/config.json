@@ -1,0 +1,24 @@
+{
+  "name": "pgvector-T-filtered",
+  "description": "pgvector HNSW, Stufe T, Variante A, Filtered Search (rating >= 4)",
+  "db": "pgvector",
+  "stufe": "T",
+  "dim": 384,
+  "variant": "A",
+  "workload": "filtered",
+  "filter": {
+    "rating_gte": 4
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 500,
+    "concurrency": 1
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "pinecone-S-latency",
+  "description": "Pinecone Pod s1.x1, Stufe S, Single-Query Latenz",
+  "db": "pinecone",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "pod_type": "s1.x1",
+      "pods": 1,
+      "region": "aws-us-east-1"
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 1
+  }
+}
