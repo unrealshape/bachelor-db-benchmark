@@ -45,7 +45,7 @@ Gemessen am Embedding-Volumen, nicht an der Dokumentenzahl. 1024 x float32
   XXL ca. 100 GB  -> ~26.21 Mio. Reviews
 
 `--stage` triggert die Vorgabe. Stufen sind unabhaengig (jede Stufe schreibt
-ihr eigenes Verzeichnis); die kumulative Variante des `build_corpus.py` ist
+ihr eigenes Verzeichnis); die kumulative Variante des alten Synthese-Loaders ist
 fuer reale Reviews nicht praktikabel, weil ein 100 GB-Korpus einmal
 geschrieben und dann fuer XL/L/M durch Subsetting genutzt werden koennte —
 das bleibt offen, in der ersten Iteration wird pro Stufe komplett neu

@@ -141,8 +141,10 @@ def load_corpus_chunks(stufe_dir: Path, dim: int):
     if not paths:
         raise SystemExit(
             f"Keine corpus-chunks unter {stufe_dir}. "
-            f"Generiere zuerst: python benchmarks/demodata/build_corpus.py "
-            f"--output-dir {stufe_dir} --size <T|S|M|L|XL>"
+            f"Stufen S/M/L/XL/XXL: python benchmarks/reviewdata/load.py "
+            f"--stage <S|M|L|XL|XXL>. "
+            f"Dev-Stufen T/T2: python benchmarks/demodata/generate.py "
+            f"--output-dir {stufe_dir} --size <T|T2>."
         )
     out = []
     for p in paths:
@@ -334,7 +336,8 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int):
                 if not query_texts:
                     raise SystemExit(
                         "hybrid braucht queries.parquet mit review_text -- "
-                        "build_corpus.py liefert das automatisch mit"
+                        "reviewdata/load.py + reviewdata/gen_queries.py "
+                        "liefern das automatisch mit"
                     )
                 return adapter.query_hybrid(
                     v, query_texts[i], k_max, alpha=hybrid_alpha,
