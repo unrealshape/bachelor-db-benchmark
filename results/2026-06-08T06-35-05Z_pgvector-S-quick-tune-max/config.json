@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S-quick-tune-max",
+  "description": "pgvector HNSW, Stufe S quick (50k), tune-max",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 48,
+      "ef_construction": 512,
+      "ef_search": 256
+    }
+  },
+  "queries": {
+    "n": 100,
+    "concurrency": 1
+  }
+}
