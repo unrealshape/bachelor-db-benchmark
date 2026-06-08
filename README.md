@@ -73,3 +73,19 @@ tuning pgvector HNSW (m / ef_construction / ef_search):
 - tune-low 8/64/32: qps=308.9, p50=3.11ms, recall@10=0.843, build=14s
 - tune-high 32/256/128: qps=102.2, p50=9.72ms, recall@10=0.995, build=94s
 - tune-max 48/512/256: qps=61.7, p50=15.96ms, recall@10=0.999, build=192s
+
+NDCG@10 quervergleich (gewichtet nach Position, 1.0 = perfekt):
+
+| Config | weaviate NDCG@10 | pgvector NDCG@10 |
+|---|---|---|
+| topk default | 0.979 | 0.982 |
+| filtered (Filter-GT) | 0.981 | 0.952 |
+| batch (Conc 8) | 0.980 | 0.981 |
+| hybrid (Hybrid-GT) | 0.309 | 0.176 |
+| Variante B | 0.979 | 0.981 |
+| notune | 0.910 | 0.670 |
+| tune-low | 0.950 | 0.893 |
+| tune-high | 0.993 | 0.997 |
+| tune-max | 0.997 | 0.999 |
+
+NDCG verhaelt sich konsistent zu Recall@10 -- bestaetigt die Tuning-Tendenz.
