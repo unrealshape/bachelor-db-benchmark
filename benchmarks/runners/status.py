@@ -77,20 +77,22 @@ def db_for_config(cfg: str) -> str:
     return cfg.split("-")[0]  # weaviate-T2-latency -> weaviate
 
 
+def _stufe_vectors() -> dict:
+    """STUFE_VECTORS direkt aus runner.py -- single source of truth. Vorher lag
+    hier eine veraltete Kopie (S=100k statt 2,4M, kein S0/S1), die die
+    Fortschritts-Schaetzung verfaelscht hat."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from runner import STUFE_VECTORS
+    return STUFE_VECTORS
+
+
 def target_n_vectors(cfg: str) -> int:
     """Lädt die Config, gibt die Soll-Vektorenzahl aus STUFE_VECTORS zurück."""
     cfg_path = REPO_ROOT / "benchmarks" / "configs" / f"{cfg}.json"
     if not cfg_path.exists():
         return 0
     data = json.loads(cfg_path.read_text())
-    stufe = data["stufe"]
-    # STUFE_VECTORS-Mapping aus runner.py importieren -- wir kopieren es hier
-    # bewusst flach damit status.py nicht den ganzen runner anstoßen muss.
-    STUFE_VECTORS = {
-        "T": 20_000, "T2": 100_000, "S": 100_000,
-        "M": 500_000, "L": 1_000_000, "XL": 5_000_000,
-    }
-    return STUFE_VECTORS.get(stufe, 0)
+    return _stufe_vectors().get(data["stufe"], 0)
 
 
 def weaviate_count() -> int | None:

@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S1-throughput-c16",
+  "description": "pgvector, Stufe S1, Durchsatz @ 16 Clients",
+  "db": "pgvector",
+  "stufe": "S1",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 16
+  }
+}

@@ -135,20 +135,23 @@ class PgvectorAdapter(Adapter):
             cur.execute(f"DROP TABLE IF EXISTS {TABLE}")
             cur.execute(f"DROP TABLE IF EXISTS {TABLE_VECS}")
             cur.execute(f"DROP TABLE IF EXISTS {TABLE_META}")
+            # UNLOGGED: kein WAL -> deutlich schnellerer Bulk-COPY + kein
+            # WAL-Disk-Druck (bei 2.65M+ sonst PVC-/Crash-Risiko). Fuer einen
+            # Benchmark unkritisch -- die Daten werden vor jedem Lauf neu geladen.
             if self.variant == "B":
                 # Vektoren und Metadaten getrennt, verknuepft ueber id (Thesis 5.3 B).
                 cur.execute(
-                    f"CREATE TABLE {TABLE_VECS} "
+                    f"CREATE UNLOGGED TABLE {TABLE_VECS} "
                     f"(id BIGINT PRIMARY KEY, embedding vector({self.dim}))"
                 )
                 cur.execute(
-                    f"CREATE TABLE {TABLE_META} "
+                    f"CREATE UNLOGGED TABLE {TABLE_META} "
                     f"(id BIGINT PRIMARY KEY, {META_COLS_SQL})"
                 )
             else:
                 # Variante A: alles inline.
                 cur.execute(
-                    f"CREATE TABLE {TABLE} "
+                    f"CREATE UNLOGGED TABLE {TABLE} "
                     f"(id BIGINT PRIMARY KEY, embedding vector({self.dim}), "
                     f"{META_COLS_SQL})"
                 )

@@ -27,28 +27,33 @@ CONFIGS_DIR = REPO_ROOT / "benchmarks" / "configs"
 
 # Spec-Version-Tag. Wird in jede summary.json geschrieben, damit Auswertungen
 # zwischen Mess-Läufen unterschiedlicher Methodik-Stände unterscheiden können.
-# "1024-bge-v1" = 1024 dim BAAI/bge-large-en-v1.5 (lokal), S/M/L/XL/XXL =
-# 10/20/40/80/100 GB, p50/p95/p99, k3d lokal, Pinecone s1.x1 mit Server-Latenz-Header.
-SPEC_VERSION = "1024-bge-v1"
+# "1024-bge-v2" = 1024 dim BAAI/bge-large-en-v1.5 (lokal). v2: feasible Stufen
+# S0/S1/S/M, Warmup-Discard, Disk-I/O-Sampling, echter n_vectors, Speicherdruck-
+# Achse (mem_limit_gb). L/XL/XXL als HW-Grenze dokumentiert (siehe thesis-redesign.md).
+SPEC_VERSION = "1024-bge-v2"
 
-# Vektor-Zahl pro Stufe. S/M/L/XL/XXL sind aus der Thesis (Kapitel 5.1.3,
-# Amazon Product Reviews). T und T2 sind reine Dev-Stufen mit Synthese-Daten.
-# Wenn der Loader eine corpus_meta.json schreibt, hat sie Vorrang -- die Werte
-# hier sind Ziel-Richtgrößen bei 1024-dim float32 plus HNSW-Index-Overhead.
+# Vektor-Zahl pro Stufe. S0/S1/S/M sind die feasiblen Stufen (Redesign 2026-06).
+# L/XL/XXL bleiben als Referenz, werden auf 32-GB-Hardware aber nicht gefahren.
+# T/T2 sind reine Dev-Stufen mit Synthese-Daten. Wenn der Loader eine
+# corpus_meta.json schreibt, hat sie Vorrang -- die Werte hier sind Richtgrößen.
 STUFE_VECTORS = {
     "T":       20_000,   # Dev-Pipeline (Synthese, nicht in der Thesis)
     "T2":     100_000,   # Stabilisierungs-Runs (Synthese, nicht in der Thesis)
-    "S":    2_400_000,   # Thesis Stufe 1 (~10 GB)
-    "M":    4_900_000,   # Thesis Stufe 2 (~20 GB)
-    "L":    9_800_000,   # Thesis Stufe 3 (~40 GB)
-    "XL":  19_500_000,   # Thesis Stufe 4 (~80 GB)
-    "XXL": 24_400_000,   # Thesis Stufe 5 (~100 GB)
+    "S0":     500_000,   # feasible Stufe (~2 GB) -- unterer Kurvenpunkt
+    "S1":   1_200_000,   # feasible Stufe (~5 GB)
+    "S":    2_400_000,   # feasible Stufe (~10 GB) -- Haupt-Stufe
+    "M":    4_900_000,   # feasible Stufe (~20 GB) -- Ceiling + Druck-Achse
+    "L":    9_800_000,   # HW-Grenze (~40 GB, nicht gefahren)
+    "XL":  19_500_000,   # HW-Grenze (~80 GB, nicht gefahren)
+    "XXL": 24_400_000,   # HW-Grenze (~100 GB, nicht gefahren)
 }
 
 # Grobe On-Disk-Größe pro Stufe (Parquet inkl. Index, bge-large-en-v1.5 1024 dim).
 STUFE_GB = {
     "T":     0.10,
     "T2":    0.56,
+    "S0":    2.0,
+    "S1":    5.0,
     "S":    10.0,
     "M":    20.0,
     "L":    40.0,
@@ -260,15 +265,35 @@ DB_WORKLOAD = {
 }
 
 
-def pre_run_reset(db: str, timeout_s: int = 180) -> dict:
+def pre_run_reset(db: str, mem_limit_gb: int | float | None = None,
+                  timeout_s: int = 180) -> dict:
     """Pod-Restart vor jedem echten Lauf, damit der Index aus einem definierten
     Zustand neu aufgebaut wird (Thesis 5: Caches geleert, DB neugestartet).
 
     OS-Page-Cache laesst sich in k3d nicht zuverlaessig droppen -- dokumentiert
     als Limitation. Effekt: DB-internen Cache nullen wir ueber den Pod-Restart.
-    """
+
+    mem_limit_gb (Speicherdruck-Achse): patcht das Container-Memory-Limit der
+    StatefulSet vor dem Restart. So wird derselbe M-Korpus unter sinkendem
+    Pod-RAM gemessen -> 'Index waechst raus'-Degradation (dokumentierte
+    Abweichung von der 8-GB-Paritaet)."""
     namespace, _ = DB_POD[db]
     kind, name = DB_WORKLOAD[db]
+    notes = {"pre_run_reset": "rollout-restart", "timeout_s": timeout_s}
+    if mem_limit_gb:
+        patch = [{
+            "op": "replace",
+            "path": "/spec/template/spec/containers/0/resources/limits/memory",
+            "value": f"{mem_limit_gb}Gi",
+        }]
+        print(f"  pre-run: patch {kind}/{name} memory-limit -> {mem_limit_gb}Gi",
+              flush=True)
+        subprocess.run(
+            ["kubectl", "-n", namespace, "patch", kind, name,
+             "--type=json", "-p", json.dumps(patch)],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
+        )
+        notes["mem_limit_gb"] = mem_limit_gb
     print(f"  pre-run reset: rollout restart {kind}/{name}", flush=True)
     subprocess.run(
         ["kubectl", "-n", namespace, "rollout", "restart", f"{kind}/{name}"],
@@ -279,7 +304,7 @@ def pre_run_reset(db: str, timeout_s: int = 180) -> dict:
          f"--timeout={timeout_s}s"],
         check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
     )
-    return {"pre_run_reset": "rollout-restart", "timeout_s": timeout_s}
+    return notes
 
 
 def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None):
@@ -324,7 +349,7 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
     # Pre-Run-Hook: Pod-Restart, sofern nicht in der Config abgewaehlt.
     if cfg.get("pre_run_reset", True):
         try:
-            notes.update(pre_run_reset(cfg["db"]))
+            notes.update(pre_run_reset(cfg["db"], mem_limit_gb=cfg.get("mem_limit_gb")))
         except subprocess.CalledProcessError as e:
             notes["pre_run_reset_error"] = str(e)
             print(f"  pre-run reset fehlgeschlagen: {e} -- fahre fort", flush=True)
@@ -343,6 +368,7 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
             adapter.insert(ids, vecs, metadata=metadata)
         insert_s = time.time() - t0
         notes["insert_time_s"] = round(insert_s, 2)
+        notes["n_vectors_actual"] = n_vec  # echter Count, nicht der Stufen-Zielwert
         notes["has_metadata"] = has_metadata
         notes["gt_file"] = gt_file
         if gt_note:
@@ -371,6 +397,10 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
                 "mem_avg_mb": avg.mem_avg_mb,
                 "cpu_peak_cores": avg.cpu_peak_cores,
                 "mem_peak_mb": avg.mem_peak_mb,
+                "disk_read_mb": avg.disk_read_mb,
+                "disk_write_mb": avg.disk_write_mb,
+                "disk_read_ios": avg.disk_read_ios,
+                "disk_write_ios": avg.disk_write_ios,
                 "samples": avg.n_samples,
             }
             return metrics, round(build_s, 2), size_mb, resources, cluster, notes
@@ -425,6 +455,14 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
                 adapter.precision_at_k(retrieved, truth, 10),
                 adapter.ndcg_at_k(retrieved, truth, 10),
             )
+
+        # Warmup: erste Queries fuellen DB-/OS-Cache, Timings verworfen, damit die
+        # Messung nicht kalt-kontaminiert ist (Thesis 5.5.1). Sequentiell, gedeckelt
+        # auf die verfuegbaren Queries.
+        n_warmup = min(cfg["queries"].get("n_warmup", 1000), n_query)
+        for i in range(n_warmup):
+            do_query(i, queries[i])
+        notes["n_warmup"] = n_warmup
 
         t_qstart = time.time()
         if concurrency <= 1:
@@ -513,7 +551,7 @@ def write_summary(run_dir, cfg, metrics, started_at, *,
         "db": {"name": cfg["db"], "version": None, "image": None},
         "dataset": {
             "size_label": cfg["stufe"],
-            "n_vectors": STUFE_VECTORS[cfg["stufe"]],
+            "n_vectors": (notes_dict or {}).get("n_vectors_actual") or STUFE_VECTORS.get(cfg["stufe"]),
             "dim": dim_used if dim_used is not None else cfg.get("dim", 1024),
             "variant": cfg.get("variant"),
             "size_gb": STUFE_GB.get(cfg["stufe"]),
@@ -552,6 +590,8 @@ def rebuild_index():
             s = json.loads(sf.read_text())
         except json.JSONDecodeError:
             continue
+        s_notes = s.get("notes") if isinstance(s.get("notes"), dict) else {}
+        s_res = s.get("resources") or {}
         runs.append({
             "id": s["run_id"],
             "config_name": s.get("config_name"),
@@ -568,6 +608,15 @@ def rebuild_index():
             "recall_at_10": s["metrics"].get("recall_at_10"),
             "size_gb": s["dataset"].get("size_gb"),
             "index_type": s["index"].get("type"),
+            # Parametrisierungen -- damit das Dashboard danach filtern kann.
+            "variant": s["dataset"].get("variant"),
+            "dim": s["dataset"].get("dim"),
+            "n_vectors": s["dataset"].get("n_vectors"),
+            "concurrency": s["workload"].get("concurrency"),
+            "build_time_s": s["index"].get("build_time_s"),
+            "mem_limit_gb": s_notes.get("mem_limit_gb"),
+            "n_warmup": s_notes.get("n_warmup"),
+            "disk_read_mb": s_res.get("disk_read_mb"),
         })
     runs.sort(key=lambda r: r["started_at"], reverse=True)
     index = {"generated_at": now_iso(), "n_runs": len(runs), "runs": runs}
@@ -609,7 +658,7 @@ def main():
             _cfg_peek = load_config(args.config) if args.config else {}
         except SystemExit:
             _cfg_peek = {}
-        prod_stage = _cfg_peek.get("stufe") in {"S", "M", "L", "XL", "XXL"}
+        prod_stage = _cfg_peek.get("stufe") in {"S0", "S1", "S", "M", "L", "XL", "XXL"}
         args.push = bool(prod_stage and not args.dummy)
 
     if args.list:

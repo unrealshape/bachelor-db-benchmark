@@ -105,8 +105,12 @@ EMBEDDING_BYTES_PER_VEC = EMBEDDING_DIM * 4  # float32
 # BGE-Query-Instruction: nur bei Queries, NICHT bei Passages.
 BGE_QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
-# Stufen — Embedding-Volumen (GB) -> Anzahl Reviews
+# Stufen — Embedding-Volumen (GB) -> Anzahl Reviews. S0/S1/S/M sind die
+# feasiblen Stufen (Redesign 2026-06); L/XL/XXL bleiben als Referenz, werden
+# auf 32-GB-Hardware aber nicht gefahren. Gekoppelt an runner.STUFE_VECTORS.
 STAGE_GB = {
+    "S0":  2,
+    "S1":  5,
     "S":   10,
     "M":   20,
     "L":   40,

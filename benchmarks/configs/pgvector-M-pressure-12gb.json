@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-M-pressure-12gb",
+  "description": "pgvector, Stufe M @ 12Gi Pod-RAM (Speicherdruck-Achse)",
+  "db": "pgvector",
+  "stufe": "M",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 4900,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 12
+}

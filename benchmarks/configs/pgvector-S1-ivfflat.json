@@ -1,0 +1,20 @@
+{
+  "name": "pgvector-S1-ivfflat",
+  "description": "pgvector, Stufe S1, Single-Query Latenz (IVFFlat)",
+  "db": "pgvector",
+  "stufe": "S1",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1200,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  }
+}

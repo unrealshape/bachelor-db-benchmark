@@ -4,6 +4,4 @@ huggingface-hub>=0.23
 sentence-transformers>=2.7
 transformers>=4.39
 torch>=2.0
-tqdm>=4.66
-scikit-learn>=1.3
-rank-bm25>=0.2
+rank-bm25>=0.2  # nur fuer BM25-Ground-Truth (gen_special_gt.py)

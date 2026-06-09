@@ -88,6 +88,14 @@ def main():
                 adapter.ndcg_at_k(retrieved, truth, 10),
             )
 
+        # Warmup: erste Queries fuellen DB-/OS-Cache; Timings werden verworfen,
+        # damit die Messung nicht kalt-kontaminiert ist (Thesis 5.5.1). n_warmup
+        # aus der Config, gedeckelt auf die verfuegbaren Queries. Sequentiell --
+        # es geht nur ums Cache-Warmziehen, nicht um Zeiten.
+        n_warmup = min(cfg["queries"].get("n_warmup", 1000), n_query)
+        for i in range(n_warmup):
+            do_query(i, queries[i])
+
         lat, r1, r10, r100, p10, nd = [], [], [], [], [], []
         t0 = time.time()
         if concurrency <= 1:
@@ -118,6 +126,7 @@ def main():
             "metrics": metrics,
             "measured": "in-cluster",
             "n_queries_executed": n_query,
+            "n_warmup": n_warmup,
             "concurrency": concurrency,
             "gt_file": gt_file,
             "gt_note": gt_note,
