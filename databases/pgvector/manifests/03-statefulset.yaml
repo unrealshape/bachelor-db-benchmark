@@ -68,12 +68,14 @@ spec:
         - name: init
           configMap:
             name: pgvector-init
-        # /dev/shm im k8s-Default ist 64 MiB -- HNSW-Build auf 100k+ Vektoren
-        # benötigt mehr. Memory-tmpfs auf 4 GiB hochziehen.
+        # /dev/shm im k8s-Default ist 64 MiB. Der PARALLELE HNSW-Build legt
+        # maintenance_work_mem (~8 GB) als Shared-Memory-Segment in /dev/shm ab
+        # -> 4 GiB reichen nicht (DiskFull). 10 GiB deckt maint_work_mem + Puffer;
+        # passt mit shared_buffers (4 GB) in das 20-GiB-Pod-Limit.
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 4Gi
+            sizeLimit: 10Gi
   volumeClaimTemplates:
     - metadata:
         name: data

@@ -387,6 +387,7 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
             metrics = out["metrics"]
             notes["measured"] = "in-cluster"
             notes["n_queries_executed"] = out.get("n_queries_executed")
+            notes["n_warmup"] = out.get("n_warmup")
             notes["gt_file"] = out.get("gt_file")
             if out.get("gt_note"):
                 notes["gt_note"] = out["gt_note"]

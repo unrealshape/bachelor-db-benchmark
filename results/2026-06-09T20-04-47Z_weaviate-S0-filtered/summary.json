@@ -1,0 +1,75 @@
+{
+  "run_id": "2026-06-09T20-04-47Z_weaviate-S0-filtered",
+  "config_name": "weaviate-S0-filtered",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-09T20:04:47Z",
+  "finished_at": "2026-06-09T20:12:30Z",
+  "duration_s": 7663,
+  "status": "ok",
+  "db": {
+    "name": "weaviate",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S0",
+    "n_vectors": 550000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 2.0
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    },
+    "build_time_s": 1.03,
+    "size_on_disk_mb": 3597.3
+  },
+  "workload": {
+    "profile": "filtered",
+    "n_queries": 2000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 216.5,
+    "latency_ms_mean": 4.59,
+    "latency_ms_p50": 3.26,
+    "latency_ms_p95": 10.19,
+    "latency_ms_p99": 21.14,
+    "recall_at_1": 0.876,
+    "recall_at_10": 0.8557,
+    "recall_at_100": 0.7318,
+    "precision_at_10": 0.8557,
+    "ndcg_at_10": 0.9007
+  },
+  "resources": {
+    "cpu_avg_cores": 1.8992,
+    "mem_avg_mb": 4091.8,
+    "cpu_peak_cores": 1.995,
+    "mem_peak_mb": 5641.0,
+    "disk_read_mb": 0.2,
+    "disk_write_mb": 20519.0,
+    "disk_read_ios": 7,
+    "disk_write_ios": 21667,
+    "samples": 205
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "insert_time_s": 421.22,
+    "n_vectors_actual": 550000,
+    "has_metadata": true,
+    "gt_file": "ground_truth_filter_rating_gte_4_ids.npy",
+    "measured": "in-cluster",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "mode": "real"
+  }
+}

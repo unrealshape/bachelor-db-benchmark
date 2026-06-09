@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-S0-throughput-c16",
+  "description": "weaviate, Stufe S0, Durchsatz @ 16 Clients",
+  "db": "weaviate",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 16
+  }
+}
