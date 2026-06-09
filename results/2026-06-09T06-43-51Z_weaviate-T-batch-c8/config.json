@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-T-batch-c8",
+  "description": "Weaviate, Stufe T, Variante A, Batch Throughput (8 parallele Clients)",
+  "db": "weaviate",
+  "stufe": "T",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 500,
+    "concurrency": 8
+  }
+}

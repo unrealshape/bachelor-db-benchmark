@@ -1,0 +1,24 @@
+{
+  "name": "weaviate-T-filtered",
+  "description": "Weaviate, Stufe T, Variante A, Filtered Search (rating >= 4)",
+  "db": "weaviate",
+  "stufe": "T",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "filtered",
+  "filter": {
+    "rating_gte": 4
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 500,
+    "concurrency": 1
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "run_id": "2026-06-09T06-35-34Z_weaviate-S-quick-batch",
+  "config_name": "weaviate-S-quick-batch",
+  "spec_version": "1024-bge-v1",
+  "started_at": "2026-06-09T06:35:34Z",
+  "finished_at": "2026-06-09T06:36:12Z",
+  "duration_s": 7238,
+  "status": "ok",
+  "db": {
+    "name": "weaviate",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S",
+    "n_vectors": 2400000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 10.0
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    },
+    "build_time_s": 1.01,
+    "size_on_disk_mb": 492.2
+  },
+  "workload": {
+    "profile": "batch",
+    "n_queries": 100,
+    "concurrency": 8
+  },
+  "metrics": {
+    "throughput_qps": 1133.8,
+    "latency_ms_mean": 6.68,
+    "latency_ms_p50": 6.36,
+    "latency_ms_p95": 10.13,
+    "latency_ms_p99": 11.59,
+    "recall_at_1": 0.98,
+    "recall_at_10": 0.978,
+    "recall_at_100": 0.9161,
+    "precision_at_10": 0.978,
+    "ndcg_at_10": 0.9823
+  },
+  "resources": {
+    "cpu_avg_cores": 1.693,
+    "mem_avg_mb": 597.0,
+    "cpu_peak_cores": 1.693,
+    "mem_peak_mb": 597.0,
+    "samples": 5
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "insert_time_s": 18.25,
+    "has_metadata": true,
+    "gt_file": "ground_truth_ids.npy",
+    "measured": "in-cluster",
+    "n_queries_executed": 100,
+    "mode": "real"
+  }
+}
