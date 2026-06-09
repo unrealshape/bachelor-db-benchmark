@@ -109,8 +109,20 @@ def filter_gt(corpus_dir: Path, filter_spec: str, top_k: int) -> None:
     print(f"\n  Gefilterte GT geschrieben fuer {suffix} (n_keep_total={n_keep_total:,})")
 
 
+# RRF-Konstante. Muss zu Weaviates Ranked-Fusion (RANK_CONSTANT=60) passen,
+# damit die GT dieselbe Fusion abbildet wie die nativen DB-Queries.
+RRF_K = 60
+
+
 def hybrid_gt(corpus_dir: Path, alpha: float, top_k: int) -> None:
-    """Berechnet Hybrid-GT: alpha*Cosine + (1-alpha)*BM25, top-k."""
+    """Berechnet Hybrid-GT per Reciprocal Rank Fusion (RRF), passend zu den
+    nativen DB-Hybrid-Queries (Weaviate Ranked-Fusion, pgvector RRF-SQL):
+
+        score = alpha / (RRF_K + vrank) + (1-alpha) / (RRF_K + trank)
+
+    vrank = Rang nach Cosine (absteigend) ueber den ganzen Korpus, trank = Rang
+    nach BM25 (absteigend) unter den Treffern mit BM25 > 0. Dokumente ohne
+    BM25-Treffer tragen nur den Vektor-Term bei."""
     try:
         from rank_bm25 import BM25Okapi
     except ImportError:
@@ -144,15 +156,27 @@ def hybrid_gt(corpus_dir: Path, alpha: float, top_k: int) -> None:
     print("  Scores berechnen...", flush=True)
     top_scores = np.zeros((Q, top_k), dtype=np.float32)
     top_ids = np.zeros((Q, top_k), dtype=np.int64)
+    n_doc = ids.shape[0]
     for q in range(Q):
         cos = embs @ queries[q]
         bm = bm25.get_scores(query_texts[q].lower().split()).astype(np.float32)
-        # Normiere BM25 auf [0,1] pro Query damit das Gewicht alpha funktioniert
-        if bm.max() > 0:
-            bm = bm / bm.max()
-        score = alpha * cos + (1.0 - alpha) * bm
+
+        # Vektor-Raenge (1-basiert) ueber alle Dokumente.
+        vorder = np.argsort(-cos)
+        vrank = np.empty(n_doc, dtype=np.float64)
+        vrank[vorder] = np.arange(1, n_doc + 1)
+
+        # Text-Raenge nur unter BM25 > 0; Rest traegt keinen Text-Term bei.
+        rrf_text = np.zeros(n_doc, dtype=np.float64)
+        pos = np.where(bm > 0)[0]
+        if pos.size:
+            torder = pos[np.argsort(-bm[pos])]
+            trank = np.arange(1, torder.size + 1)
+            rrf_text[torder] = 1.0 / (RRF_K + trank)
+
+        score = alpha * (1.0 / (RRF_K + vrank)) + (1.0 - alpha) * rrf_text
         order = np.argsort(-score)[:top_k]
-        top_scores[q] = score[order]
+        top_scores[q] = score[order].astype(np.float32)
         top_ids[q] = ids[order]
         if (q + 1) % 50 == 0:
             print(f"    {q+1}/{Q}", flush=True)

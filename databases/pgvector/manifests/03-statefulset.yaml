@@ -21,6 +21,14 @@ spec:
         - name: postgres
           image: pgvector/pgvector:0.8.0-pg17
           imagePullPolicy: IfNotPresent
+          # Server-seitige Latenz-Metrik: pg_stat_statements vorladen.
+          args:
+            - "-c"
+            - "shared_preload_libraries=pg_stat_statements"
+            - "-c"
+            - "pg_stat_statements.track=all"
+            - "-c"
+            - "pg_stat_statements.max=10000"
           ports:
             - containerPort: 5432
               name: postgres

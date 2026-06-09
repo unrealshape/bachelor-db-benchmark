@@ -38,6 +38,9 @@ internal/draft/
 .demodata/
 demodata-cache/
 
+# Ad-hoc WSL-Setup/Run-Skripte (operativ, nicht Teil der Codebase)
+_wsl_*.sh
+
 # Lokale Tool-Artefakte
 .claude-flow/
 .swarm/

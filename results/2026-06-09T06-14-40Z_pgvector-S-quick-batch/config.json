@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S-quick-batch",
+  "description": "pgvector, Stufe S quick (50k Reviews), Variante A, batch concurrency=8",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 100,
+    "concurrency": 8
+  }
+}

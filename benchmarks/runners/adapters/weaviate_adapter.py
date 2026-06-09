@@ -107,6 +107,40 @@ class WeaviateAdapter(Adapter):
         self._local_http = int(os.environ.get("WEAVIATE_LOCAL_HTTP", "8080"))
         self._local_grpc = int(os.environ.get("WEAVIATE_LOCAL_GRPC", "50051"))
         self._build_s: float | None = None
+        # In-Cluster-Modus: Mess-Pod verbindet via ClusterIP-DNS, kein port-forward.
+        self._in_cluster = os.environ.get("BENCH_IN_CLUSTER") == "1"
+
+    def _connect_client(self):
+        import weaviate
+        if self._in_cluster:
+            http_host = os.environ.get(
+                "WEAVIATE_HTTP_HOST",
+                f"{WEAVIATE_HTTP_SERVICE}.{WEAVIATE_NAMESPACE}.svc.cluster.local")
+            grpc_host = os.environ.get(
+                "WEAVIATE_GRPC_HOST",
+                f"{WEAVIATE_GRPC_SERVICE}.{WEAVIATE_NAMESPACE}.svc.cluster.local")
+            return weaviate.connect_to_custom(
+                http_host=http_host, http_port=WEAVIATE_HTTP_PORT, http_secure=False,
+                grpc_host=grpc_host, grpc_port=WEAVIATE_GRPC_PORT, grpc_secure=False,
+            )
+        return weaviate.connect_to_local(
+            host="127.0.0.1", port=self._local_http, grpc_port=self._local_grpc,
+        )
+
+    def attach(self) -> None:
+        """Verbindet zu bereits befuellten Collections ohne Drop/Create
+        (Mess-Pod im Cluster). Setzt nur die Collection-Handles."""
+        if not self._in_cluster and os.environ.get("WEAVIATE_SKIP_PORTFORWARD") != "1":
+            self._pfs = _port_forward(self._local_http, self._local_grpc)
+            _wait_for("127.0.0.1", self._local_http)
+            _wait_for("127.0.0.1", self._local_grpc)
+            _wait_http_ready("127.0.0.1", self._local_http)
+        self._client = self._connect_client()
+        if self.variant == "B":
+            self._coll_vecs = self._client.collections.get(COLLECTION_VECS)
+            self._coll_meta = self._client.collections.get(COLLECTION_META)
+        else:
+            self._coll = self._client.collections.get(COLLECTION)
 
     # ---- lifecycle --------------------------------------------------------
 
@@ -116,17 +150,13 @@ class WeaviateAdapter(Adapter):
             Configure, DataType, Property, VectorDistances,
         )
 
-        if os.environ.get("WEAVIATE_SKIP_PORTFORWARD") != "1":
+        if not self._in_cluster and os.environ.get("WEAVIATE_SKIP_PORTFORWARD") != "1":
             self._pfs = _port_forward(self._local_http, self._local_grpc)
             _wait_for("127.0.0.1", self._local_http)
             _wait_for("127.0.0.1", self._local_grpc)
-        _wait_http_ready("127.0.0.1", self._local_http)
+            _wait_http_ready("127.0.0.1", self._local_http)
 
-        self._client = weaviate.connect_to_local(
-            host="127.0.0.1",
-            port=self._local_http,
-            grpc_port=self._local_grpc,
-        )
+        self._client = self._connect_client()
 
         # Idempotent: alle alten Collections wegräumen.
         for name in (COLLECTION, COLLECTION_VECS, COLLECTION_META):
@@ -279,6 +309,8 @@ class WeaviateAdapter(Adapter):
         """Hybrid = BM25(review_text) + Vektor. Weaviate hat ein natives
         hybrid()-API mit alpha. Nur Variante A unterstützt das direkt --
         Variante B muss erst Texte aus BenchMeta holen."""
+        from weaviate.classes.query import HybridFusion
+
         if self.variant == "B":
             # Variante B: vector-only Top-K' und dann text-rerank wäre die
             # saubere Variante. Wir machen den einfachen Fall: vector first,
@@ -288,11 +320,15 @@ class WeaviateAdapter(Adapter):
             # Auswertung.
             return self.query(vec, k)
 
+        # Ranked-Fusion = Reciprocal Rank Fusion (RANK_CONSTANT=60), passend zur
+        # RRF-GT (gen_special_gt) und zur pgvector-RRF-SQL.
         coll = self._coll
         res = coll.query.hybrid(
             query=text,
             vector=vec.tolist(),
             alpha=alpha,
+            fusion_type=HybridFusion.RANKED,
+            query_properties=["review_text"],  # GT-BM25 nutzt nur review_text
             limit=k,
             return_properties=["ext_id"],
         )

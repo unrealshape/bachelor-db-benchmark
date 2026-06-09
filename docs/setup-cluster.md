@@ -34,9 +34,11 @@ sudo usermod -aG docker $USER
 curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install kubectl /usr/local/bin/
-curl https://baltocdn.com/helm/signing.asc | sudo apt-key add -
-sudo apt install helm
+# Helm: apt-key ist auf Ubuntu 24.04 raus, Skript-Install ist der einfachste Weg
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ```
+
+`usermod -aG docker` greift erst nach neuem Login — in derselben Session `newgrp docker` oder kurz aus-/einloggen, sonst „permission denied" am Docker-Socket.
 
 Repo + Python-Env:
 

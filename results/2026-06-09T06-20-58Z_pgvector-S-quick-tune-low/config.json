@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S-quick-tune-low",
+  "description": "pgvector HNSW, Stufe S quick (50k), tune-low",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 8,
+      "ef_construction": 64,
+      "ef_search": 32
+    }
+  },
+  "queries": {
+    "n": 100,
+    "concurrency": 1
+  }
+}

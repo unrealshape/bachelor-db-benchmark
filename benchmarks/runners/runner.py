@@ -250,9 +250,12 @@ def pre_run_reset(db: str, timeout_s: int = 180) -> dict:
     return {"pre_run_reset": "rollout-restart", "timeout_s": timeout_s}
 
 
-def real_run(cfg: dict, demodata_dir: Path, dim: int):
+def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None):
     """Führt einen echten Run aus, gibt (metrics_dict, build_time_s, size_mb,
-    resources_dict, cluster_dict, notes) zurück."""
+    resources_dict, cluster_dict, notes) zurück.
+
+    Mit BENCH_INCLUSTER=1 laeuft der Query-Loop als Pod im Cluster (ClusterIP,
+    kein port-forward im Mess-Pfad); insert + build_index bleiben host-seitig."""
     # Dependencies werden lazy importiert -- pyarrow/numpy braucht der Dummy-
     # Path nicht.
     import numpy as np
@@ -307,6 +310,30 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int):
 
         print(f"  build index...", flush=True)
         build_s = adapter.build_index()
+
+        # In-Cluster-Messung: Query-Loop laeuft als Pod via ClusterIP (kein
+        # port-forward im Mess-Pfad). Host bleibt Orchestrator (insert/build/
+        # Resource-Sampling laufen weiter).
+        if os.environ.get("BENCH_INCLUSTER") == "1":
+            from incluster import run_incluster_measure
+            print("  in-cluster measure (Job)...", flush=True)
+            out = run_incluster_measure(cfg, run_id, cfg["stufe"])
+            metrics = out["metrics"]
+            notes["measured"] = "in-cluster"
+            notes["n_queries_executed"] = out.get("n_queries_executed")
+            notes["gt_file"] = out.get("gt_file")
+            if out.get("gt_note"):
+                notes["gt_note"] = out["gt_note"]
+            size_mb = adapter.index_size_mb()
+            avg = sampler.stop()
+            resources = {
+                "cpu_avg_cores": avg.cpu_avg_cores,
+                "mem_avg_mb": avg.mem_avg_mb,
+                "cpu_peak_cores": avg.cpu_peak_cores,
+                "mem_peak_mb": avg.mem_peak_mb,
+                "samples": avg.n_samples,
+            }
+            return metrics, round(build_s, 2), size_mb, resources, cluster, notes
 
         # Effektive Anzahl Queries (kann kleiner sein als queries.npy enthält)
         n_query = min(n_query, queries.shape[0])
@@ -575,7 +602,7 @@ def main():
         if detected and detected != cfg.get("dim", detected):
             print(f"  Hinweis: Config-dim {cfg.get('dim')} != Korpus-dim {detected} -- benutze {detected}", flush=True)
         metrics, build_s, size_mb, resources, cluster, adapter_notes = real_run(
-            cfg, args.demodata_dir, dim=dim_used,
+            cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
         )
         notes_dict.update(adapter_notes)
         notes_dict["mode"] = "real"

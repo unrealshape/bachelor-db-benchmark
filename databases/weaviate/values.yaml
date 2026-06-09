@@ -27,6 +27,12 @@ authentication:
 service:
   type: ClusterIP
 
+# Server-seitige Latenz-Metriken: Prometheus-Endpoint auf :2112 (/metrics).
+# Liefert u.a. Query-Latenz-Histogramme -> p50/p95/p99 server-seitig.
+env:
+  PROMETHEUS_MONITORING_ENABLED: "true"
+  PROMETHEUS_MONITORING_PORT: 2112
+
 modules:
   text2vec-contextionary:
     enabled: false

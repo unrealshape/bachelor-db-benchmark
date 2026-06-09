@@ -1,0 +1,20 @@
+{
+  "name": "pgvector-T-ivfflat",
+  "description": "pgvector mit IVFFlat, Stufe T -- Vergleichslauf zu HNSW",
+  "db": "pgvector",
+  "stufe": "T",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 50,
+      "probes": 5
+    }
+  },
+  "queries": {
+    "n": 500,
+    "concurrency": 1
+  }
+}

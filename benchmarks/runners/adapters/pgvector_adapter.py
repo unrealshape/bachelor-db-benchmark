@@ -78,17 +78,45 @@ class PgvectorAdapter(Adapter):
         self._local_port = int(os.environ.get("PG_LOCAL_PORT", "55432"))
         self._index_type = cfg["index"]["type"]  # 'hnsw' oder 'ivfflat'
         self._build_s: float | None = None
+        # In-Cluster-Modus: Mess-Pod verbindet via ClusterIP-DNS, kein port-forward.
+        self._in_cluster = os.environ.get("BENCH_IN_CLUSTER") == "1"
 
     def _connect(self):
         import psycopg
+        if self._in_cluster:
+            host = os.environ.get(
+                "PG_HOST", f"{PG_SERVICE}.{PG_NAMESPACE}.svc.cluster.local")
+            port = int(os.environ.get("PG_PORT", str(PG_PORT)))
+        else:
+            host = "127.0.0.1"
+            port = self._local_port
         return psycopg.connect(
-            host="127.0.0.1",
-            port=self._local_port,
+            host=host,
+            port=port,
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASS,
             autocommit=True,
         )
+
+    def _apply_search_params(self) -> None:
+        """ef_search / probes sind Session-Settings -- pro Connection neu setzen
+        (im Mess-Pod, der eine eigene Connection hat)."""
+        p = self.index_params
+        with self._conn.cursor() as cur:
+            if self._index_type == "hnsw":
+                cur.execute(f"SET hnsw.ef_search = {p.get('ef_search', 64)}")
+            elif self._index_type == "ivfflat":
+                cur.execute(f"SET ivfflat.probes = {p.get('probes', 10)}")
+
+    def attach(self) -> None:
+        """Verbindet zu einer bereits befuellten DB ohne Schema-Drop (Mess-Pad
+        im Cluster). Setzt Such-Parameter fuer die neue Session."""
+        if not self._in_cluster and os.environ.get("PG_SKIP_PORTFORWARD") != "1":
+            self._pf = _port_forward(self._local_port)
+            _wait_for("127.0.0.1", self._local_port)
+        self._conn = self._connect()
+        self._apply_search_params()
 
     # ---- lifecycle --------------------------------------------------------
 
@@ -97,7 +125,7 @@ class PgvectorAdapter(Adapter):
         return TABLE_VECS if self.variant == "B" else TABLE
 
     def setup(self) -> None:
-        if os.environ.get("PG_SKIP_PORTFORWARD") != "1":
+        if not self._in_cluster and os.environ.get("PG_SKIP_PORTFORWARD") != "1":
             self._pf = _port_forward(self._local_port)
             _wait_for("127.0.0.1", self._local_port)
 
@@ -230,6 +258,15 @@ class PgvectorAdapter(Adapter):
                 cur.execute(f"SET ivfflat.probes = {probes}")
             else:
                 raise ValueError(f"unbekannter index type: {self._index_type}")
+            # Hybrid braucht einen GIN-Index auf dem tsvector, sonst macht die
+            # Text-Komponente pro Query einen Seqscan. Nur fuer hybrid bauen,
+            # damit topk/filtered/batch ihre build_time nicht verfaelscht kriegen.
+            if self.cfg.get("workload") == "hybrid":
+                txt_tbl = TABLE_META if self.variant == "B" else tbl
+                cur.execute(
+                    f"CREATE INDEX IF NOT EXISTS {txt_tbl}_ts_gin ON {txt_tbl} "
+                    f"USING gin (to_tsvector('english', review_text))"
+                )
             cur.execute(f"ANALYZE {tbl}")
             if self.variant == "B":
                 cur.execute(f"ANALYZE {TABLE_META}")
@@ -280,47 +317,43 @@ class PgvectorAdapter(Adapter):
 
     def query_hybrid(self, vec: np.ndarray, text: str, k: int,
                       alpha: float = 0.5) -> list[int]:
-        """Hybrid = BM25 (tsvector + plainto_tsquery) + Vektor (cosine).
-        Wir nutzen Reciprocal Rank Fusion (RRF) als Score, weil die zwei
-        Räume nicht direkt vergleichbar sind. alpha steuert das Gewicht
-        des Vektor-Rangs gegen den Text-Rang (1.0 = pur Vektor, 0.0 = pur Text).
-        Variante B: erst Kandidaten aus Vektoren, dann in TABLE_META re-ranken."""
+        """Native Reciprocal Rank Fusion in EINER SQL (server-seitig, kein
+        Client-Merge) -- passt zur RRF-GT (gen_special_gt) und zu Weaviates
+        Ranked-Fusion (RANK_CONSTANT=60):
+
+            score = alpha/(K + vrank) + (1-alpha)/(K + trank)
+
+        Kandidaten = Top-pool nach Vektor UNION Top-pool nach Text. Dokumente
+        ohne Rang in einer Liste tragen dort ~0 bei (COALESCE auf 1e9).
+        pgvector nutzt ts_rank_cd statt echtem BM25 -- bauartbedingte Differenz
+        zur BM25-GT, fairer Befund (kein natives BM25 in pgvector)."""
         vec_str = _vec_to_pg(vec)
-        oversample = k * 10
-        if self.variant == "B":
-            # B: vec-cands holen, dann gegen meta.review_text BM25 ranken
-            sql = (
-                f"WITH vec_cands AS ("
-                f" SELECT id, embedding <=> %s::vector AS vd, "
-                f"        ROW_NUMBER() OVER (ORDER BY embedding <=> %s::vector) AS vrank "
-                f" FROM {TABLE_VECS} ORDER BY embedding <=> %s::vector LIMIT %s "
-                f"),"
-                f"text_score AS ("
-                f" SELECT id, "
-                f"        ts_rank_cd(to_tsvector('english', review_text), plainto_tsquery('english', %s)) AS ts "
-                f" FROM {TABLE_META} WHERE id IN (SELECT id FROM vec_cands)"
-                f")"
-                f"SELECT v.id "
-                f"FROM vec_cands v LEFT JOIN text_score t USING (id) "
-                f"ORDER BY %s * (1.0 / NULLIF(v.vrank, 0)) + (1.0 - %s) * COALESCE(t.ts, 0) DESC "
-                f"LIMIT %s"
-            )
-            params = (vec_str, vec_str, vec_str, oversample, text or "",
-                      alpha, alpha, k)
-        else:
-            sql = (
-                f"WITH vec_cands AS ("
-                f" SELECT id, embedding <=> %s::vector AS vd, "
-                f"        ROW_NUMBER() OVER (ORDER BY embedding <=> %s::vector) AS vrank, "
-                f"        ts_rank_cd(to_tsvector('english', review_text), plainto_tsquery('english', %s)) AS ts "
-                f" FROM {TABLE} ORDER BY embedding <=> %s::vector LIMIT %s "
-                f")"
-                f"SELECT id FROM vec_cands "
-                f"ORDER BY %s * (1.0 / NULLIF(vrank, 0)) + (1.0 - %s) * COALESCE(ts, 0) DESC "
-                f"LIMIT %s"
-            )
-            params = (vec_str, vec_str, text or "", vec_str, oversample,
-                      alpha, alpha, k)
+        q = text or ""
+        pool = max(k * 5, 500)
+        K = 60
+        vec_tbl = TABLE_VECS if self.variant == "B" else TABLE
+        txt_tbl = TABLE_META if self.variant == "B" else TABLE
+        sql = (
+            f"WITH vc AS ("
+            f"  SELECT id, ROW_NUMBER() OVER (ORDER BY embedding <=> %s::vector) AS vrank "
+            f"  FROM {vec_tbl} ORDER BY embedding <=> %s::vector LIMIT %s"
+            f"), tc AS ("
+            f"  SELECT id, ROW_NUMBER() OVER ("
+            f"    ORDER BY ts_rank_cd(to_tsvector('english', review_text), "
+            f"             plainto_tsquery('english', %s)) DESC) AS trank "
+            f"  FROM {txt_tbl} "
+            f"  WHERE to_tsvector('english', review_text) @@ plainto_tsquery('english', %s) "
+            f"  ORDER BY ts_rank_cd(to_tsvector('english', review_text), "
+            f"           plainto_tsquery('english', %s)) DESC LIMIT %s"
+            f"), u AS (SELECT id FROM vc UNION SELECT id FROM tc) "
+            f"SELECT u.id FROM u "
+            f"LEFT JOIN vc ON vc.id = u.id LEFT JOIN tc ON tc.id = u.id "
+            f"ORDER BY %s / ({K} + COALESCE(vc.vrank, 1e9)) "
+            f"       + %s / ({K} + COALESCE(tc.trank, 1e9)) DESC "
+            f"LIMIT %s"
+        )
+        params = (vec_str, vec_str, pool, q, q, q, pool,
+                  alpha, 1.0 - alpha, k)
         with self._conn.cursor() as cur:
             cur.execute(sql, params)
             return [row[0] for row in cur.fetchall()]
