@@ -9,9 +9,9 @@ data:
     CREATE EXTENSION IF NOT EXISTS vector;
     CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
   01_tuning.sql: |
-    ALTER SYSTEM SET shared_buffers = '1GB';
-    ALTER SYSTEM SET maintenance_work_mem = '3GB';
-    ALTER SYSTEM SET autovacuum_work_mem = '256MB';
+    ALTER SYSTEM SET shared_buffers = '4GB';
+    ALTER SYSTEM SET maintenance_work_mem = '8GB';
+    ALTER SYSTEM SET autovacuum_work_mem = '512MB';
     ALTER SYSTEM SET max_parallel_maintenance_workers = '2';
     ALTER SYSTEM SET max_parallel_workers_per_gather = '2';
     ALTER SYSTEM SET effective_cache_size = '6GB';

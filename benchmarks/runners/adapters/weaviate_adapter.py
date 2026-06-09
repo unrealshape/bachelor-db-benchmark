@@ -172,7 +172,7 @@ class WeaviateAdapter(Adapter):
             ef=p.get("ef", 64),
             ef_construction=p.get("ef_construction", 128),
             max_connections=p.get("M", 16),
-            vector_cache_max_objects=p.get("vector_cache_max_objects", 1_200_000),
+            vector_cache_max_objects=p.get("vector_cache_max_objects", 3_000_000),
             distance_metric=VectorDistances.COSINE,
         )
 

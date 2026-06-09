@@ -11,10 +11,10 @@ replicas: 1
 resources:
   requests:
     cpu: "1"
-    memory: "4Gi"
+    memory: "8Gi"
   limits:
     cpu: "2"
-    memory: "8Gi"
+    memory: "20Gi"
 
 storage:
   size: 50Gi
