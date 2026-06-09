@@ -423,6 +423,11 @@ class BGEEmbedder:
         self.model = SentenceTransformer(EMBEDDING_MODEL, device=self.device)
         # BGE-Large hat 512 Token Limit
         self.model.max_seq_length = 512
+        # fp16 auf CUDA: ~2x Durchsatz, vernachlaessigbarer Float-Unterschied
+        # (Output wird eh L2-normalisiert + als float32 gespeichert). Konsistent
+        # ueber alle Stufen auf dieser Maschine.
+        if self.device == "cuda" and os.environ.get("BENCH_EMBED_FP32") != "1":
+            self.model = self.model.half()
 
     def encode(self, texts: list[str]) -> np.ndarray:
         embs = self.model.encode(

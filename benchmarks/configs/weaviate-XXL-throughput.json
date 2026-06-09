@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-XXL-throughput",
+  "description": "Weaviate, Stufe XXL, hoher Durchsatz (16 parallele Clients)",
+  "db": "weaviate",
+  "stufe": "XXL",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 16
+  }
+}

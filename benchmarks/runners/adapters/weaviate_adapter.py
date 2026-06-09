@@ -164,10 +164,15 @@ class WeaviateAdapter(Adapter):
                 self._client.collections.delete(name)
 
         p = self.index_params
+        # vectorCacheMaxObjects begrenzt die im RAM gehaltenen Vektoren auf das
+        # 8-GB-Pod-Budget (~1,2M x 4KB ≈ 5GB). Groessere Stufen spillen den Rest
+        # on-demand von Disk -> misst die "Index waechst raus"-Degradation
+        # (Thesis Kap 5) statt OOM-Crash. Pro Config ueberschreibbar.
         hnsw = Configure.VectorIndex.hnsw(
             ef=p.get("ef", 64),
             ef_construction=p.get("ef_construction", 128),
             max_connections=p.get("M", 16),
+            vector_cache_max_objects=p.get("vector_cache_max_objects", 1_200_000),
             distance_metric=VectorDistances.COSINE,
         )
 

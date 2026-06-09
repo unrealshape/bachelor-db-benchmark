@@ -1,0 +1,20 @@
+{
+  "name": "pgvector-XXL-ivfflat",
+  "description": "pgvector mit IVFFlat statt HNSW, Stufe XXL, Vergleichslauf",
+  "db": "pgvector",
+  "stufe": "XXL",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1000,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 1
+  }
+}
