@@ -1,7 +1,24 @@
 {
-  "generated_at": "2026-06-09T06:52:19Z",
-  "n_runs": 78,
+  "generated_at": "2026-06-09T09:41:54Z",
+  "n_runs": 79,
   "runs": [
+    {
+      "id": "2026-06-09T09-18-27Z_pgvector-S-ivfflat",
+      "config_name": "pgvector-S-ivfflat",
+      "spec_version": "1024-bge-v1",
+      "db": "pgvector",
+      "stufe": "S",
+      "workload": "topk",
+      "status": "ok",
+      "started_at": "2026-06-09T09:18:27Z",
+      "throughput_qps": 7.1,
+      "latency_ms_p50": 133.7,
+      "latency_ms_p95": 241.15,
+      "latency_ms_p99": 294.44,
+      "recall_at_10": 0.6686,
+      "size_gb": 10.0,
+      "index_type": "ivfflat"
+    },
     {
       "id": "2026-06-09T06-50-29Z_weaviate-T2-throughput",
       "config_name": "weaviate-T2-throughput",
