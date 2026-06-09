@@ -162,6 +162,38 @@ def load_corpus_chunks(stufe_dir: Path, dim: int):
     return out
 
 
+def corpus_chunk_paths(stufe_dir: Path):
+    return sorted(stufe_dir.glob("chunk_*.parquet"))
+
+
+def stream_corpus_chunks(stufe_dir: Path, dim: int):
+    """Wie load_corpus_chunks, aber als Generator -- haelt nur EINEN Chunk im
+    RAM. Noetig fuer grosse Stufen (M+), deren Gesamtkorpus (20-100 GB) nicht in
+    den Host-RAM passt. Liefert (ids, vecs, metadata|None) pro Parquet-Chunk."""
+    import numpy as np
+    import pyarrow.parquet as pq
+
+    paths = corpus_chunk_paths(stufe_dir)
+    if not paths:
+        raise SystemExit(
+            f"Keine corpus-chunks unter {stufe_dir}. "
+            f"Stufen S/M/L/XL/XXL: python benchmarks/reviewdata/load.py "
+            f"--stage <S|M|L|XL|XXL>."
+        )
+    for p in paths:
+        schema_cols = set(pq.read_schema(p).names)
+        meta_cols = [c for c in META_COLS if c in schema_cols]
+        cols = ["id", "embedding"] + meta_cols
+        tbl = pq.read_table(p, columns=cols)
+        ids = tbl["id"].to_numpy()
+        flat = tbl["embedding"].combine_chunks().values.to_numpy(zero_copy_only=False)
+        emb = flat.astype(np.float32, copy=False).reshape(-1, dim)
+        metadata = None
+        if meta_cols:
+            metadata = {c: tbl[c].to_pylist() for c in meta_cols}
+        yield ids, emb, metadata
+
+
 def load_queries(stufe_dir: Path, cfg: dict | None = None):
     """Laed queries.npy und die zur Workload passende Ground Truth.
 
@@ -264,12 +296,18 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
     from adapters import get_adapter
     from cluster_metrics import ResourceSampler, cluster_info
 
+    import pyarrow.parquet as pq
+
     stufe_dir = demodata_dir / cfg["stufe"]
-    corpus = load_corpus_chunks(stufe_dir, dim)
     queries, ground_truth, gt_file, gt_note = load_queries(stufe_dir, cfg)
 
-    has_metadata = any(meta is not None for _, _, meta in corpus)
-    n_vec = sum(len(c[0]) for c in corpus)
+    # Streaming-Insert: nicht den ganzen Korpus in den RAM laden (M+ = 20-100 GB).
+    chunk_paths = corpus_chunk_paths(stufe_dir)
+    if not chunk_paths:
+        raise SystemExit(f"Keine corpus-chunks unter {stufe_dir}.")
+    first_cols = set(pq.read_schema(chunk_paths[0]).names)
+    has_metadata = any(c in first_cols for c in META_COLS)
+    n_chunks = len(chunk_paths)
     n_query = cfg["queries"]["n"]
     concurrency = cfg["queries"]["concurrency"]
     k_max = 100
@@ -296,10 +334,12 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
         adapter.setup()
 
         sampler.start()
-        print(f"  insert {n_vec:,} Vektoren in {len(corpus)} Chunks"
+        print(f"  insert (streaming) in {n_chunks} Chunks"
               + (" + Metadaten" if has_metadata else "") + "...", flush=True)
         t0 = time.time()
-        for ids, vecs, metadata in corpus:
+        n_vec = 0
+        for ids, vecs, metadata in stream_corpus_chunks(stufe_dir, dim):
+            n_vec += len(ids)
             adapter.insert(ids, vecs, metadata=metadata)
         insert_s = time.time() - t0
         notes["insert_time_s"] = round(insert_s, 2)
