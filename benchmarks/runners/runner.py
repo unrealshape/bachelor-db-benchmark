@@ -617,6 +617,8 @@ def rebuild_index():
             "mem_limit_gb": s_notes.get("mem_limit_gb"),
             "n_warmup": s_notes.get("n_warmup"),
             "disk_read_mb": s_res.get("disk_read_mb"),
+            "repeat_group": s_notes.get("repeat_group"),
+            "repeat_index": s_notes.get("repeat_index"),
         })
     runs.sort(key=lambda r: r["started_at"], reverse=True)
     index = {"generated_at": now_iso(), "n_runs": len(runs), "runs": runs}
@@ -648,6 +650,10 @@ def main():
                         "Default ist push fuer echte Runs auf Stufe S/M/L/XL/XXL.")
     p.add_argument("--push", dest="push", action="store_true",
                    help="explizit committen + pushen (auch auf T/T2 oder bei --dummy).")
+    p.add_argument("--repeat", type=int, default=1,
+                   help="Lauf N-mal wiederholen (Varianz-Analyse). Jede Wdh. "
+                        "schreibt eine eigene summary.json, getaggt mit "
+                        "repeat_group/repeat_index in den Notes.")
     p.set_defaults(push=None)
     args = p.parse_args()
 
@@ -670,53 +676,66 @@ def main():
         sys.exit("--config <name> oder --list")
 
     cfg = load_config(args.config)
-    started_at = now_iso()
-    run_id = f"{now_id()}_{cfg['name']}"
-    run_dir = RESULTS_DIR / run_id
-    print(f"▸ Run: {run_id}")
+    n_repeat = max(1, args.repeat)
+    # Gemeinsamer Tag, der alle Wiederholungen desselben Aufrufs verknuepft.
+    repeat_group = f"{now_id()}_{cfg['name']}" if n_repeat > 1 else None
 
-    build_s = None
-    size_mb = None
-    resources = None
-    cluster = None
-    notes_dict = {}
+    for rep in range(n_repeat):
+        started_at = now_iso()
+        run_id = f"{now_id()}_{cfg['name']}"
+        if n_repeat > 1:
+            run_id += f"-r{rep + 1}"
+        run_dir = RESULTS_DIR / run_id
+        tag = f"  (Wdh {rep + 1}/{n_repeat})" if n_repeat > 1 else ""
+        print(f"▸ Run: {run_id}{tag}")
 
-    dim_used = cfg.get("dim", 1024)
-    if args.dummy:
-        metrics = fake_metrics(cfg)
-        notes_dict["mode"] = "dummy"
-    else:
-        detected = detect_corpus_dim(args.demodata_dir / cfg["stufe"])
-        dim_used = detected or cfg.get("dim", 1024)
-        if detected and detected != cfg.get("dim", detected):
-            print(f"  Hinweis: Config-dim {cfg.get('dim')} != Korpus-dim {detected} -- benutze {detected}", flush=True)
-        metrics, build_s, size_mb, resources, cluster, adapter_notes = real_run(
-            cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
+        build_s = None
+        size_mb = None
+        resources = None
+        cluster = None
+        notes_dict = {}
+
+        dim_used = cfg.get("dim", 1024)
+        if args.dummy:
+            metrics = fake_metrics(cfg)
+            notes_dict["mode"] = "dummy"
+        else:
+            detected = detect_corpus_dim(args.demodata_dir / cfg["stufe"])
+            dim_used = detected or cfg.get("dim", 1024)
+            if detected and detected != cfg.get("dim", detected):
+                print(f"  Hinweis: Config-dim {cfg.get('dim')} != Korpus-dim {detected} -- benutze {detected}", flush=True)
+            metrics, build_s, size_mb, resources, cluster, adapter_notes = real_run(
+                cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
+            )
+            notes_dict.update(adapter_notes)
+            notes_dict["mode"] = "real"
+
+        if n_repeat > 1:
+            notes_dict["repeat_group"] = repeat_group
+            notes_dict["repeat_index"] = rep + 1
+            notes_dict["repeat_total"] = n_repeat
+
+        write_summary(
+            run_dir, cfg, metrics, started_at,
+            build_time_s=build_s, size_on_disk_mb=size_mb,
+            resources=resources, cluster=cluster, dim_used=dim_used,
+            notes_dict=notes_dict,
         )
-        notes_dict.update(adapter_notes)
-        notes_dict["mode"] = "real"
+        print(
+            f"  qps={metrics['throughput_qps']}  "
+            f"p50={metrics['latency_ms_p50']}ms  "
+            f"p95={metrics['latency_ms_p95']}ms  "
+            f"recall@10={metrics['recall_at_10']}"
+        )
+        if build_s is not None:
+            print(f"  build_time={build_s}s  index_size={size_mb} MB")
 
-    write_summary(
-        run_dir, cfg, metrics, started_at,
-        build_time_s=build_s, size_on_disk_mb=size_mb,
-        resources=resources, cluster=cluster, dim_used=dim_used,
-        notes_dict=notes_dict,
-    )
-    print(
-        f"  qps={metrics['throughput_qps']}  "
-        f"p50={metrics['latency_ms_p50']}ms  "
-        f"p95={metrics['latency_ms_p95']}ms  "
-        f"recall@10={metrics['recall_at_10']}"
-    )
-    if build_s is not None:
-        print(f"  build_time={build_s}s  index_size={size_mb} MB")
+        index = rebuild_index()
+        print(f"  Index: {index['n_runs']} Runs gesamt")
 
-    index = rebuild_index()
-    print(f"  Index: {index['n_runs']} Runs gesamt")
-
-    if args.push:
-        git_commit_push(run_id)
-        print("  gepusht")
+        if args.push:
+            git_commit_push(run_id)
+            print("  gepusht")
 
 
 if __name__ == "__main__":
