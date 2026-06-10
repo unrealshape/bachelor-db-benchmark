@@ -50,7 +50,7 @@ def _port_forward(local_port: int) -> subprocess.Popen:
     )
 
 
-def _wait_for(host: str, port: int, timeout_s: float = 15.0) -> None:
+def _wait_for(host: str, port: int, timeout_s: float = 120.0) -> None:
     import socket
     deadline = time.time() + timeout_s
     while time.time() < deadline:

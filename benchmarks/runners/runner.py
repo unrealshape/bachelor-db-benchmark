@@ -680,6 +680,7 @@ def main():
     n_repeat = max(1, args.repeat)
     # Gemeinsamer Tag, der alle Wiederholungen desselben Aufrufs verknuepft.
     repeat_group = f"{now_id()}_{cfg['name']}" if n_repeat > 1 else None
+    n_failed = 0
 
     for rep in range(n_repeat):
         started_at = now_iso()
@@ -705,9 +706,18 @@ def main():
             dim_used = detected or cfg.get("dim", 1024)
             if detected and detected != cfg.get("dim", detected):
                 print(f"  Hinweis: Config-dim {cfg.get('dim')} != Korpus-dim {detected} -- benutze {detected}", flush=True)
-            metrics, build_s, size_mb, resources, cluster, adapter_notes = real_run(
-                cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
-            )
+            try:
+                metrics, build_s, size_mb, resources, cluster, adapter_notes = real_run(
+                    cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
+                )
+            except Exception as e:
+                # Ein fehlgeschlagener Repeat darf die uebrigen Wiederholungen
+                # nicht killen (Varianz-Analyse braucht alle Datenpunkte). Lauf
+                # ueberspringen, naechsten Repeat versuchen.
+                n_failed += 1
+                print(f"  ✗ Run fehlgeschlagen ({type(e).__name__}: {e}) -- "
+                      f"ueberspringe Wdh {rep + 1}/{n_repeat}", flush=True)
+                continue
             notes_dict.update(adapter_notes)
             notes_dict["mode"] = "real"
 
@@ -737,6 +747,10 @@ def main():
         if args.push:
             git_commit_push(run_id)
             print("  gepusht")
+
+    if n_repeat > 1:
+        print(f"= {cfg['name']}: {n_repeat - n_failed}/{n_repeat} Wdh ok"
+              + (f", {n_failed} fehlgeschlagen" if n_failed else ""))
 
 
 if __name__ == "__main__":
