@@ -75,8 +75,14 @@ class Adapter(ABC):
         sollten Metadaten direkt in `insert` einbringen, das ist effizienter."""
 
     @abstractmethod
-    def build_index(self) -> float:
-        """Index bauen (falls noch nicht). Gibt Bauzeit in Sekunden zurück."""
+    def build_index(self, build_text_index: bool | None = None) -> float:
+        """Index bauen (falls noch nicht). Gibt Bauzeit in Sekunden zurück.
+
+        build_text_index steuert den Text-/BM25-Index (pgvector: GIN auf
+        tsvector). None = Default-Heuristik (nur wenn workload == hybrid).
+        True = erzwingen (entkoppelter Ingest, der EINEN Index fuer alle
+        Workloads inkl. hybrid baut). Adapter ohne separaten Text-Index
+        (weaviate: inverted index automatisch) ignorieren den Schalter."""
 
     @abstractmethod
     def query(self, vec: np.ndarray, k: int) -> list[int]:

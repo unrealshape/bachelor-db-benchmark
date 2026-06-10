@@ -3,10 +3,18 @@
 Run oder einen echten Lauf gegen den k3d-Cluster durch, schreibt summary.json
 und rebuilded den Index. Optional commit + push.
 
-Echter Lauf:
+Gekoppelt (insert+build+measure in einem):
     runner.py --config weaviate-T-latency
 Dummy:
     runner.py --config weaviate-S-latency --dummy
+
+Entkoppelt (Roadmap Punkt 0 -- 1x ingest, N Messungen; macht S/M fahrbar):
+    runner.py --config pgvector-S-latency  --ingest-only      # einmal befuellen
+    runner.py --config pgvector-S-latency  --measure-only --repeat 3
+    runner.py --config pgvector-S-filtered --measure-only     # selber Index
+Der Ingest baut bei pgvector den Text-Index mit -> EIN Ingest pro (DB,Stufe,
+Variante) bedient alle vier Workloads. --measure-only startet den Pod NICHT neu
+(UNLOGGED-Truncation-Risiko); Cache-Kaltstart deckt der Warmup-Discard ab.
 """
 
 import argparse
@@ -533,6 +541,177 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
         adapter.teardown()
 
 
+# ----- Ingest/Measure-Entkopplung -----------------------------------------
+# Roadmap Punkt 0 (thesis-redesign §7): Ingest (insert+build) von der Messung
+# trennen, damit 1 Ingest pro (DB,Stufe,Variante) viele Messungen traegt. Ohne
+# das skaliert nichts ueber S0 (weaviate-M-Insert ~60 min). Der Ingest legt ein
+# Manifest ab; --measure-only liest daraus build_time/index_size (die kann die
+# Messung nicht neu erheben, der Index steht schon) und misst via in-cluster Job
+# gegen den befuellten Index. Kein Pod-Restart im Measure-Pfad (pgvector-Tabellen
+# sind UNLOGGED -> Restart-Truncation-Risiko); Cache-Kaltstart deckt n_warmup ab.
+
+def ingest_manifest_path(demodata_dir: Path, cfg: dict) -> Path:
+    """Lokaler State, welcher Index aktuell im Cluster geladen ist. Liegt im
+    demodata-Cache (~/.cache, maschinen-lokal), NICHT in results/ -- das ist
+    kein Thesis-Material und gehoert nicht ins Public-Repo."""
+    variant = cfg.get("variant", "A")
+    key = f"{cfg['db']}_{cfg['stufe']}_{variant}.json"
+    return demodata_dir / ".ingest_state" / key
+
+
+def read_ingest_manifest(demodata_dir: Path, cfg: dict) -> dict | None:
+    p = ingest_manifest_path(demodata_dir, cfg)
+    if not p.exists():
+        return None
+    return json.loads(p.read_text())
+
+
+def real_ingest(cfg: dict, demodata_dir: Path, dim: int) -> dict:
+    """Insert + Index-Bau gegen den Cluster, dann Daten stehen lassen. Baut bei
+    pgvector zusaetzlich den GIN-Text-Index (build_text_index=True), damit EIN
+    Ingest alle vier Workloads (topk/filtered/batch/hybrid) bedient. Gibt das
+    Manifest-Dict zurueck (build_time, index_size, insert_time, n_vectors)."""
+    sys.path.insert(0, str(REPO_ROOT / "benchmarks" / "runners"))
+    from adapters import get_adapter
+    from cluster_metrics import ResourceSampler, cluster_info
+    import pyarrow.parquet as pq
+
+    stufe_dir = demodata_dir / cfg["stufe"]
+    chunk_paths = corpus_chunk_paths(stufe_dir)
+    if not chunk_paths:
+        raise SystemExit(f"Keine corpus-chunks unter {stufe_dir}.")
+    first_cols = set(pq.read_schema(chunk_paths[0]).names)
+    has_metadata = any(c in first_cols for c in META_COLS)
+    n_chunks = len(chunk_paths)
+
+    AdapterCls = get_adapter(cfg["db"])
+    adapter = AdapterCls(cfg, dim=dim)
+    cluster = cluster_info()
+    namespace, pod = DB_POD[cfg["db"]]
+    sampler = ResourceSampler(namespace=namespace, pod=pod, interval_s=2.0)
+
+    notes = {}
+    if cfg.get("pre_run_reset", True):
+        try:
+            notes.update(pre_run_reset(cfg["db"], mem_limit_gb=cfg.get("mem_limit_gb")))
+        except subprocess.CalledProcessError as e:
+            notes["pre_run_reset_error"] = str(e)
+            print(f"  pre-run reset fehlgeschlagen: {e} -- fahre fort", flush=True)
+
+    try:
+        print(f"  setup ({adapter.db_name})...", flush=True)
+        adapter.setup()
+
+        sampler.start()
+        print(f"  insert (streaming) in {n_chunks} Chunks"
+              + (" + Metadaten" if has_metadata else "") + "...", flush=True)
+        t0 = time.time()
+        n_vec = 0
+        for ids, vecs, metadata in stream_corpus_chunks(stufe_dir, dim):
+            n_vec += len(ids)
+            adapter.insert(ids, vecs, metadata=metadata)
+        insert_s = time.time() - t0
+
+        print(f"  build index (Text-Index inkl.)...", flush=True)
+        build_s = adapter.build_index(build_text_index=True)
+        size_mb = adapter.index_size_mb()
+        avg = sampler.stop()
+    finally:
+        sampler.stop()
+        adapter.teardown()
+
+    manifest = {
+        "db": cfg["db"],
+        "stufe": cfg["stufe"],
+        "variant": cfg.get("variant", "A"),
+        "dim": dim,
+        "spec_version": SPEC_VERSION,
+        "index": {"type": cfg["index"]["type"], "params": cfg["index"]["params"]},
+        "ingest_config": cfg["name"],
+        "ingested_at": now_iso(),
+        "insert_time_s": round(insert_s, 2),
+        "build_time_s": round(build_s, 2),
+        "index_size_mb": size_mb,
+        "n_vectors_actual": n_vec,
+        "has_metadata": has_metadata,
+        "text_index": True,
+        "mem_limit_gb": cfg.get("mem_limit_gb"),
+        "insert_resources": {
+            "cpu_avg_cores": avg.cpu_avg_cores,
+            "mem_avg_mb": avg.mem_avg_mb,
+            "cpu_peak_cores": avg.cpu_peak_cores,
+            "mem_peak_mb": avg.mem_peak_mb,
+            "disk_read_mb": avg.disk_read_mb,
+            "disk_write_mb": avg.disk_write_mb,
+            "samples": avg.n_samples,
+        },
+        "cluster": cluster,
+    }
+    mp = ingest_manifest_path(demodata_dir, cfg)
+    mp.parent.mkdir(parents=True, exist_ok=True)
+    mp.write_text(json.dumps(manifest, indent=2) + "\n")
+    return manifest
+
+
+def real_measure(cfg: dict, demodata_dir: Path, dim: int, run_id: str,
+                 manifest: dict):
+    """Misst gegen den bereits befuellten Index (kein insert/build, kein
+    Pod-Restart). Laeuft als in-cluster Job (run_incluster_measure) -- derselbe
+    Mess-Pfad wie der gekoppelte Lauf. build_time/index_size stammen aus dem
+    Ingest-Manifest. Gibt (metrics, build_s, size_mb, resources, cluster, notes)."""
+    sys.path.insert(0, str(REPO_ROOT / "benchmarks" / "runners"))
+    from cluster_metrics import ResourceSampler, cluster_info
+    from incluster import run_incluster_measure
+
+    namespace, pod = DB_POD[cfg["db"]]
+    cluster = cluster_info()
+    sampler = ResourceSampler(namespace=namespace, pod=pod, interval_s=2.0)
+
+    notes = {
+        "measured": "in-cluster",
+        "decoupled": True,
+        "ingested_at": manifest.get("ingested_at"),
+        "ingest_config": manifest.get("ingest_config"),
+        "insert_time_s": manifest.get("insert_time_s"),
+        "n_vectors_actual": manifest.get("n_vectors_actual"),
+        "has_metadata": manifest.get("has_metadata"),
+        "mem_limit_gb": manifest.get("mem_limit_gb"),
+    }
+    # Methodik-Note: Im entkoppelten Modus wird der Pod NICHT pro Messung neu
+    # gestartet (UNLOGGED-Truncation-Risiko, s.o.). Cache-Kaltstart deckt der
+    # Warmup-Discard ab. Bewusste, dokumentierte Abweichung vom Restart-Hook.
+    notes["pre_run_reset"] = "skipped (decoupled, warmup-discard)"
+
+    sampler.start()
+    print("  in-cluster measure (Job, entkoppelt)...", flush=True)
+    try:
+        out = run_incluster_measure(cfg, run_id, cfg["stufe"])
+    finally:
+        avg = sampler.stop()
+
+    metrics = out["metrics"]
+    notes["n_queries_executed"] = out.get("n_queries_executed")
+    notes["n_warmup"] = out.get("n_warmup")
+    notes["gt_file"] = out.get("gt_file")
+    if out.get("gt_note"):
+        notes["gt_note"] = out["gt_note"]
+
+    resources = {
+        "cpu_avg_cores": avg.cpu_avg_cores,
+        "mem_avg_mb": avg.mem_avg_mb,
+        "cpu_peak_cores": avg.cpu_peak_cores,
+        "mem_peak_mb": avg.mem_peak_mb,
+        "disk_read_mb": avg.disk_read_mb,
+        "disk_write_mb": avg.disk_write_mb,
+        "disk_read_ios": avg.disk_read_ios,
+        "disk_write_ios": avg.disk_write_ios,
+        "samples": avg.n_samples,
+    }
+    build_s = manifest.get("build_time_s")
+    size_mb = manifest.get("index_size_mb")
+    return metrics, build_s, size_mb, resources, cluster, notes
+
+
 # ----- Output --------------------------------------------------------------
 
 def write_summary(run_dir, cfg, metrics, started_at, *,
@@ -655,8 +834,20 @@ def main():
                    help="Lauf N-mal wiederholen (Varianz-Analyse). Jede Wdh. "
                         "schreibt eine eigene summary.json, getaggt mit "
                         "repeat_group/repeat_index in den Notes.")
+    p.add_argument("--ingest-only", action="store_true",
+                   help="Nur insert + build_index (inkl. Text-Index) gegen den "
+                        "Cluster, dann Daten stehen lassen. Schreibt ein "
+                        "Ingest-Manifest, keine summary.json. 1x pro (DB,Stufe,"
+                        "Variante) -- danach beliebig oft --measure-only.")
+    p.add_argument("--measure-only", action="store_true",
+                   help="Nur messen gegen den vom Ingest befuellten Index "
+                        "(kein insert/build, kein Pod-Restart). Braucht ein "
+                        "Manifest aus --ingest-only. Mit --repeat N kombinierbar.")
     p.set_defaults(push=None)
     args = p.parse_args()
+
+    if args.ingest_only and args.measure_only:
+        sys.exit("--ingest-only und --measure-only schliessen sich aus")
 
     # Auto-Push-Logik: Default ist push fuer echte Runs auf den Prod-Stufen.
     # Dummy-Laufe und Dev-Stufen T/T2 werden nicht gepusht, ausser --push explizit.
@@ -677,6 +868,44 @@ def main():
         sys.exit("--config <name> oder --list")
 
     cfg = load_config(args.config)
+
+    # ----- Ingest-only: einmal befuellen, Manifest schreiben, fertig ---------
+    if args.ingest_only:
+        if args.dummy:
+            sys.exit("--ingest-only ist kein Dummy-Pfad")
+        detected = detect_corpus_dim(args.demodata_dir / cfg["stufe"])
+        dim_used = detected or cfg.get("dim", 1024)
+        if detected and detected != cfg.get("dim", detected):
+            print(f"  Hinweis: Config-dim {cfg.get('dim')} != Korpus-dim {detected} -- benutze {detected}", flush=True)
+        print(f"▸ Ingest: {cfg['db']} / {cfg['stufe']} / Variante {cfg.get('variant', 'A')}")
+        manifest = real_ingest(cfg, args.demodata_dir, dim=dim_used)
+        mp = ingest_manifest_path(args.demodata_dir, cfg)
+        print(f"  insert={manifest['insert_time_s']}s  build={manifest['build_time_s']}s  "
+              f"index={manifest['index_size_mb']} MB  n={manifest['n_vectors_actual']}")
+        print(f"  Manifest: {mp}")
+        print(f"  -> jetzt messbar: runner.py --config <db>-{cfg['stufe']}-<workload> --measure-only")
+        return
+
+    # ----- Measure-only: Manifest pruefen, dann Mess-Schleife ----------------
+    measure_manifest = None
+    if args.measure_only:
+        if args.dummy:
+            sys.exit("--measure-only ist kein Dummy-Pfad")
+        measure_manifest = read_ingest_manifest(args.demodata_dir, cfg)
+        if measure_manifest is None:
+            mp = ingest_manifest_path(args.demodata_dir, cfg)
+            sys.exit(f"Kein Ingest-Manifest fuer ({cfg['db']},{cfg['stufe']},"
+                     f"{cfg.get('variant', 'A')}) -- erwartet: {mp}\n"
+                     f"Erst: runner.py --config <ingest-config> --ingest-only")
+        # Sanity: gemessen wird gegen den GELADENEN Index. Weicht die Index-
+        # Parametrisierung der Mess-Config vom Ingest ab, ist das eine stille
+        # Fehlinterpretation -> hart warnen (Mess-Korrektheit, CLAUDE.md).
+        mi = measure_manifest.get("index", {})
+        if mi.get("params") != cfg["index"]["params"] or mi.get("type") != cfg["index"]["type"]:
+            print(f"  ⚠ WARNUNG: Mess-Config-Index {cfg['index']['type']}/{cfg['index']['params']} "
+                  f"!= geladener Index {mi.get('type')}/{mi.get('params')}. "
+                  f"Gemessen wird der GELADENE Index.", flush=True)
+
     n_repeat = max(1, args.repeat)
     # Gemeinsamer Tag, der alle Wiederholungen desselben Aufrufs verknuepft.
     repeat_group = f"{now_id()}_{cfg['name']}" if n_repeat > 1 else None
@@ -707,9 +936,15 @@ def main():
             if detected and detected != cfg.get("dim", detected):
                 print(f"  Hinweis: Config-dim {cfg.get('dim')} != Korpus-dim {detected} -- benutze {detected}", flush=True)
             try:
-                metrics, build_s, size_mb, resources, cluster, adapter_notes = real_run(
-                    cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
-                )
+                if args.measure_only:
+                    metrics, build_s, size_mb, resources, cluster, adapter_notes = real_measure(
+                        cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
+                        manifest=measure_manifest,
+                    )
+                else:
+                    metrics, build_s, size_mb, resources, cluster, adapter_notes = real_run(
+                        cfg, args.demodata_dir, dim=dim_used, run_id=run_id,
+                    )
             except Exception as e:
                 # Ein fehlgeschlagener Repeat darf die uebrigen Wiederholungen
                 # nicht killen (Varianz-Analyse braucht alle Datenpunkte). Lauf
@@ -719,7 +954,7 @@ def main():
                       f"ueberspringe Wdh {rep + 1}/{n_repeat}", flush=True)
                 continue
             notes_dict.update(adapter_notes)
-            notes_dict["mode"] = "real"
+            notes_dict["mode"] = "measure-only" if args.measure_only else "real"
 
         if n_repeat > 1:
             notes_dict["repeat_group"] = repeat_group

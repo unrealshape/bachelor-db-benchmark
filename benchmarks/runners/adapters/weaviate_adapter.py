@@ -243,7 +243,10 @@ class WeaviateAdapter(Adapter):
                 f"{len(self._coll.batch.failed_objects)} failed inserts"
             )
 
-    def build_index(self) -> float:
+    def build_index(self, build_text_index: bool | None = None) -> float:
+        # build_text_index ignoriert: weaviate haelt den BM25-/inverted-Index
+        # automatisch auf den Text-Properties (bei setup angelegt). Ein Ingest
+        # bedient damit ohnehin alle Workloads inkl. hybrid.
         coll = self._coll_vecs if self.variant == "B" else self._coll
         t0 = time.time()
         target = len(coll)

@@ -276,9 +276,10 @@ class PineconeAdapter(Adapter):
                 batch.append(rec)
             self._index.upsert(vectors=batch)
 
-    def build_index(self) -> float:
+    def build_index(self, build_text_index: bool | None = None) -> float:
         """Pinecone baut den Index waehrend des Upserts; wir warten nur bis
         `vector_count` stabil ist und returnen die dafuer noetige Zeit.
+        build_text_index ist ohne Wirkung (kein separater Text-Index).
         Pinecone braucht typischerweise ein paar Sekunden bis die Vektoren
         nach dem letzten Upsert tatsaechlich queryable sind.
         """

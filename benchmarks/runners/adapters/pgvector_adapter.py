@@ -236,7 +236,7 @@ class PgvectorAdapter(Adapter):
             return "\t".join(row)
         _copy_chunk(TABLE, ", ".join(cols), render_full)
 
-    def build_index(self) -> float:
+    def build_index(self, build_text_index: bool | None = None) -> float:
         p = self.index_params
         t0 = time.time()
         tbl = self._vec_table
@@ -262,9 +262,13 @@ class PgvectorAdapter(Adapter):
             else:
                 raise ValueError(f"unbekannter index type: {self._index_type}")
             # Hybrid braucht einen GIN-Index auf dem tsvector, sonst macht die
-            # Text-Komponente pro Query einen Seqscan. Nur fuer hybrid bauen,
-            # damit topk/filtered/batch ihre build_time nicht verfaelscht kriegen.
-            if self.cfg.get("workload") == "hybrid":
+            # Text-Komponente pro Query einen Seqscan. Im gekoppelten Modus nur
+            # fuer hybrid bauen, damit topk/filtered/batch ihre build_time nicht
+            # verfaelscht kriegen. Im entkoppelten Ingest (build_text_index=True)
+            # immer -- EIN Index bedient dann alle vier Workloads.
+            want_text = (build_text_index if build_text_index is not None
+                         else self.cfg.get("workload") == "hybrid")
+            if want_text:
                 txt_tbl = TABLE_META if self.variant == "B" else tbl
                 cur.execute(
                     f"CREATE INDEX IF NOT EXISTS {txt_tbl}_ts_gin ON {txt_tbl} "

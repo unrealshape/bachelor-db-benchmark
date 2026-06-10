@@ -1,0 +1,24 @@
+{
+  "name": "pgvector-S-hybrid",
+  "description": "pgvector, Stufe S, Hybrid BM25+Vektor (RRF)",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "hybrid",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 1
+  },
+  "hybrid": {
+    "alpha": 0.5
+  }
+}
