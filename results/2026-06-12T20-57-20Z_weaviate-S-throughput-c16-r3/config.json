@@ -1,0 +1,27 @@
+{
+  "name": "weaviate-S-throughput-c16",
+  "description": "weaviate, Stufe S, Durchsatz @ 16 Clients",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16,
+      "vector_cache_max_objects": 3000000,
+      "query_vector_cache_max_objects": 1000000
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 16
+  },
+  "build_mem_gb": 20,
+  "build_gomemlimit_mib": 18000,
+  "mem_limit_gb": 8,
+  "query_gomemlimit_mib": 7000
+}
