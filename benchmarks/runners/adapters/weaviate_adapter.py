@@ -29,6 +29,99 @@ WEAVIATE_GRPC_SERVICE = "weaviate-grpc"
 WEAVIATE_HTTP_PORT = 80
 WEAVIATE_GRPC_PORT = 50051
 
+# Prometheus-Metrics-Endpoint (PROMETHEUS_MONITORING_ENABLED in values.yaml).
+# Server-seitige Query-Latenz: Histogramm `queries_durations_ms` (Labels
+# class_name, query_type). In-Cluster ueber Pod-DNS direkt am Container-Port
+# erreichbar (keine Service-Port-Abhaengigkeit). Per env ueberschreibbar.
+WEAVIATE_METRICS_PORT = int(os.environ.get("WEAVIATE_METRICS_PORT", "2112"))
+WEAVIATE_METRICS_HOST_INCLUSTER = os.environ.get(
+    "WEAVIATE_METRICS_HOST",
+    f"weaviate-0.weaviate-headless.{WEAVIATE_NAMESPACE}.svc.cluster.local")
+QUERY_DURATION_METRIC = "queries_durations_ms"
+
+
+def _parse_query_durations(text: str, class_name: str) -> dict | None:
+    """Aggregiert das `queries_durations_ms`-Histogramm aus dem /metrics-Text
+    ueber alle query_type-Labels der gegebenen class_name. Liefert
+    {sum, count, buckets:{le->count}} oder None, wenn die Metrik fehlt.
+
+    Zeilen ohne class_name-Label werden mitgezaehlt (Fallback fuer aeltere
+    weaviate-Schemata), Zeilen mit anderer class_name uebersprungen."""
+    import re
+    sum_ms = 0.0
+    count = 0.0
+    buckets: dict[float, float] = {}
+    found = False
+    cls_re = re.compile(r'class_name="([^"]*)"')
+    le_re = re.compile(r'le="([^"]*)"')
+
+    for line in text.splitlines():
+        if not line or line[0] == "#" or not line.startswith(QUERY_DURATION_METRIC):
+            continue
+        head = line.split("{", 1)[0] if "{" in line else line.split(" ", 1)[0]
+        suffix = head[len(QUERY_DURATION_METRIC):]  # "_sum" | "_count" | "_bucket" | ""
+        m = cls_re.search(line)
+        if m and m.group(1) != class_name:
+            continue
+        try:
+            val = float(line.rsplit(" ", 1)[1])
+        except (ValueError, IndexError):
+            continue
+        if suffix == "_sum":
+            sum_ms += val; found = True
+        elif suffix == "_count":
+            count += val; found = True
+        elif suffix == "_bucket":
+            le = le_re.search(line)
+            if le:
+                key = float("inf") if le.group(1) in ("+Inf", "Inf") else float(le.group(1))
+                buckets[key] = buckets.get(key, 0.0) + val
+                found = True
+    if not found:
+        return None
+    return {"sum": sum_ms, "count": count, "buckets": buckets}
+
+
+def _fetch_metrics_text(host: str, port: int, timeout_s: float = 5.0) -> str | None:
+    """GET http://host:port/metrics -> Body oder None bei Fehler/Non-200."""
+    import urllib.request
+    import urllib.error
+    url = f"http://{host}:{port}/metrics"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout_s) as r:
+            if r.status != 200:
+                return None
+            return r.read().decode("utf-8", "replace")
+    except (urllib.error.URLError, OSError, TimeoutError):
+        return None
+
+
+def _histogram_quantile(buckets: dict, q: float) -> float | None:
+    """Prometheus-style histogram_quantile ueber kumulative {le->count}-Buckets
+    (bereits als Delta ueber das Mess-Fenster uebergeben). Lineare Interpolation
+    innerhalb des Treffer-Buckets. q in [0,1]. None wenn leer/degeneriert."""
+    if not buckets:
+        return None
+    items = sorted(buckets.items(), key=lambda kv: kv[0])  # +Inf sortiert zuletzt
+    total = items[-1][1]  # kumulativer Count beim hoechsten le (= +Inf)
+    if total <= 0:
+        return None
+    rank = q * total
+    prev_le = 0.0
+    prev_count = 0.0
+    for le, cum in items:
+        if cum >= rank:
+            if le == float("inf"):
+                return prev_le if prev_le > 0 else None
+            if cum <= prev_count:
+                return le
+            frac = (rank - prev_count) / (cum - prev_count)
+            return prev_le + frac * (le - prev_le)
+        if le != float("inf"):
+            prev_le = le
+        prev_count = cum
+    return prev_le or None
+
 
 def _port_forward(local_http: int, local_grpc: int) -> list[subprocess.Popen]:
     procs = []
@@ -109,6 +202,8 @@ class WeaviateAdapter(Adapter):
         self._build_s: float | None = None
         # In-Cluster-Modus: Mess-Pod verbindet via ClusterIP-DNS, kein port-forward.
         self._in_cluster = os.environ.get("BENCH_IN_CLUSTER") == "1"
+        # Vorher-Snapshot des queries_durations_ms-Histogramms (begin_server_metrics).
+        self._srv_snapshot: dict | None = None
 
     def _connect_client(self):
         import weaviate
@@ -165,14 +260,16 @@ class WeaviateAdapter(Adapter):
 
         p = self.index_params
         # vectorCacheMaxObjects begrenzt die im RAM gehaltenen Vektoren auf das
-        # 8-GB-Pod-Budget (~1,2M x 4KB ≈ 5GB). Groessere Stufen spillen den Rest
-        # on-demand von Disk -> misst die "Index waechst raus"-Degradation
-        # (Thesis Kap 5) statt OOM-Crash. Pro Config ueberschreibbar.
+        # erzwungene 8-GiB-Pod-Limit (Paritaet): 1,0M x 4KB ≈ 4 GB Cache, Rest
+        # geht zusammen mit Go-Heap/Insert-Puffern unter GOMEMLIMIT=7000MiB auf.
+        # Ab Stufe S (2,4M) spillt damit >die Haelfte on-demand von Disk -> misst
+        # die "Index waechst raus"-Degradation (Thesis Kap 5) statt OOM-Crash.
+        # 3M (≈12 GB) wie zuvor sprengte das Budget -> OOMKill beim Insert.
         hnsw = Configure.VectorIndex.hnsw(
             ef=p.get("ef", 64),
             ef_construction=p.get("ef_construction", 128),
             max_connections=p.get("M", 16),
-            vector_cache_max_objects=p.get("vector_cache_max_objects", 3_000_000),
+            vector_cache_max_objects=p.get("vector_cache_max_objects", 1_000_000),
             distance_metric=VectorDistances.COSINE,
         )
 
@@ -358,6 +455,63 @@ class WeaviateAdapter(Adapter):
             return round(bytes_ / (1024 * 1024), 1)
         except Exception:
             return None
+
+    # ---- server-seitige Latenz (Prometheus /metrics) ----------------------
+
+    def _metrics_endpoint(self) -> tuple[str, int] | None:
+        """Host:Port des Prometheus-/metrics-Endpoints. In-Cluster ueber Pod-DNS;
+        lokal nur wenn WEAVIATE_METRICS_HOST_LOCAL gesetzt ist (eigenes
+        port-forward auf 2112). Sonst None -> Server-Latenz wird uebersprungen."""
+        if self._in_cluster:
+            return (WEAVIATE_METRICS_HOST_INCLUSTER, WEAVIATE_METRICS_PORT)
+        host = os.environ.get("WEAVIATE_METRICS_HOST_LOCAL")
+        if host:
+            return (host, WEAVIATE_METRICS_PORT)
+        return None
+
+    def _scrape_durations(self) -> dict | None:
+        ep = self._metrics_endpoint()
+        if ep is None:
+            return None
+        text = _fetch_metrics_text(*ep)
+        if text is None:
+            return None
+        cls = COLLECTION_VECS if self.variant == "B" else COLLECTION
+        return _parse_query_durations(text, cls)
+
+    def begin_server_metrics(self) -> None:
+        """Vorher-Snapshot des Histogramms -- nach Warmup, vor dem Mess-Fenster."""
+        self._srv_snapshot = self._scrape_durations()
+
+    def server_latency_summary(self) -> dict | None:
+        """Server-seitige Query-Latenz aus dem queries_durations_ms-Histogramm,
+        als Delta gegen den begin_server_metrics-Snapshot (= reines Mess-Fenster,
+        Warmup raus). Liefert mean + p50/p95/p99 in ms, ohne Client/gRPC/Netz."""
+        now = self._scrape_durations()
+        if now is None:
+            return None
+        snap = self._srv_snapshot or {"sum": 0.0, "count": 0.0, "buckets": {}}
+        d_sum = now["sum"] - snap.get("sum", 0.0)
+        d_count = now["count"] - snap.get("count", 0.0)
+        if d_count <= 0:
+            return None
+        snap_buckets = snap.get("buckets", {})
+        d_buckets = {le: cnt - snap_buckets.get(le, 0.0)
+                     for le, cnt in now["buckets"].items()}
+        cls = COLLECTION_VECS if self.variant == "B" else COLLECTION
+        out = {
+            "source": "weaviate_prometheus",
+            "metric": QUERY_DURATION_METRIC,
+            "class_name": cls,
+            "count": int(d_count),
+            "mean_ms": round(d_sum / d_count, 3),
+            "windowed": self._srv_snapshot is not None,
+        }
+        for q, name in ((0.50, "p50_ms"), (0.95, "p95_ms"), (0.99, "p99_ms")):
+            val = _histogram_quantile(d_buckets, q)
+            if val is not None:
+                out[name] = round(val, 3)
+        return out
 
     def teardown(self) -> None:
         if self._client is not None:

@@ -14,7 +14,7 @@ resources:
     memory: "8Gi"
   limits:
     cpu: "2"
-    memory: "20Gi"
+    memory: "8Gi"   # Thesis-Paritaet 2 vCPU / 8 GB (Pinecone s1.x1-Pendant)
 
 storage:
   size: 50Gi
@@ -32,6 +32,9 @@ service:
 env:
   PROMETHEUS_MONITORING_ENABLED: "true"
   PROMETHEUS_MONITORING_PORT: 2112
+  # Go-GC am 8-GiB-Pod-Limit halten (cgroup-OOM zuvorkommen). Etwas Headroom
+  # unter 8Gi fuer Off-Heap (mmap'd HNSW-Segmente, Insert-Puffer).
+  GOMEMLIMIT: "7000MiB"
 
 modules:
   text2vec-contextionary:

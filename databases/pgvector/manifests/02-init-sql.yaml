@@ -8,11 +8,15 @@ data:
   00_extension.sql: |
     CREATE EXTENSION IF NOT EXISTS vector;
     CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+  # Auf 8-GB-Pod-Limit dimensioniert (Thesis-Paritaet 2 vCPU / 8 GB). shared_buffers
+  # + maintenance_work_mem + dshm + Overhead muessen unter 8 GiB bleiben. pgvector
+  # nutzt IVFFlat ab S (HNSW-Build sprengt das Budget) -> der leichte k-means-Build
+  # kommt mit 1 GB maintenance_work_mem aus.
   01_tuning.sql: |
-    ALTER SYSTEM SET shared_buffers = '4GB';
-    ALTER SYSTEM SET maintenance_work_mem = '8GB';
-    ALTER SYSTEM SET autovacuum_work_mem = '512MB';
+    ALTER SYSTEM SET shared_buffers = '2GB';
+    ALTER SYSTEM SET maintenance_work_mem = '1GB';
+    ALTER SYSTEM SET autovacuum_work_mem = '256MB';
     ALTER SYSTEM SET max_parallel_maintenance_workers = '2';
     ALTER SYSTEM SET max_parallel_workers_per_gather = '2';
-    ALTER SYSTEM SET effective_cache_size = '6GB';
+    ALTER SYSTEM SET effective_cache_size = '4GB';
     ALTER SYSTEM SET random_page_cost = '1.1';

@@ -90,14 +90,25 @@ class PgvectorAdapter(Adapter):
         else:
             host = "127.0.0.1"
             port = self._local_port
-        return psycopg.connect(
-            host=host,
-            port=port,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS,
-            autocommit=True,
-        )
+        # Nach einem pre-run reset (rollout restart) bindet der port-forward sofort
+        # lokal, aber Postgres im frischen Pod nimmt erst nach einigen Sekunden an
+        # -> _wait_for (nur TCP-Bind) reicht nicht. Bis ~45s auf echte Annahme warten.
+        deadline = time.time() + 45.0
+        last_exc = None
+        while time.time() < deadline:
+            try:
+                return psycopg.connect(
+                    host=host,
+                    port=port,
+                    dbname=DB_NAME,
+                    user=DB_USER,
+                    password=DB_PASS,
+                    autocommit=True,
+                )
+            except psycopg.OperationalError as e:
+                last_exc = e
+                time.sleep(1.5)
+        raise last_exc
 
     def _apply_search_params(self) -> None:
         """ef_search / probes sind Session-Settings -- pro Connection neu setzen

@@ -473,6 +473,15 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
             do_query(i, queries[i])
         notes["n_warmup"] = n_warmup
 
+        # Server-seitiges Mess-Fenster oeffnen (Adapter mit Aggregat-Endpoint, z.B.
+        # weaviate /metrics) -- nach Warmup, damit Warmup-Queries nicht ins Delta
+        # zaehlen. Default no-op (per-Query-Adapter brauchen das nicht).
+        if hasattr(adapter, "begin_server_metrics"):
+            try:
+                adapter.begin_server_metrics()
+            except Exception as e:
+                notes["server_latency_error"] = f"begin: {e}"
+
         t_qstart = time.time()
         if concurrency <= 1:
             for i in range(n_query):

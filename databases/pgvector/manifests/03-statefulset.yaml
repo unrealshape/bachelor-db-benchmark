@@ -44,7 +44,7 @@ spec:
               memory: "8Gi"
             limits:
               cpu: "2"
-              memory: "20Gi"
+              memory: "8Gi"
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
@@ -68,14 +68,14 @@ spec:
         - name: init
           configMap:
             name: pgvector-init
-        # /dev/shm im k8s-Default ist 64 MiB. Der PARALLELE HNSW-Build legt
-        # maintenance_work_mem (~8 GB) als Shared-Memory-Segment in /dev/shm ab
-        # -> 4 GiB reichen nicht (DiskFull). 10 GiB deckt maint_work_mem + Puffer;
-        # passt mit shared_buffers (4 GB) in das 20-GiB-Pod-Limit.
+        # /dev/shm im k8s-Default ist 64 MiB. Parallele Maintenance/Worker legen
+        # Shared-Memory-Segmente in /dev/shm ab. Unter dem 8-GiB-Pod-Limit (Paritaet)
+        # mit IVFFlat-Build (maintenance_work_mem 1 GB) reichen 2 GiB; emptyDir
+        # medium:Memory zaehlt selbst gegen das Pod-RAM -> klein halten.
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 10Gi
+            sizeLimit: 2Gi
   volumeClaimTemplates:
     - metadata:
         name: data

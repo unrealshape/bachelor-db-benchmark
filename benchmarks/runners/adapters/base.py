@@ -109,6 +109,19 @@ class Adapter(ABC):
     def index_size_mb(self) -> float | None:
         """Index-Größe auf Disk (MB) wenn ermittelbar, sonst None."""
 
+    def begin_server_metrics(self) -> None:
+        """Markiert den Start des Mess-Fensters fuer server-seitige Latenz
+        (Thesis: 'DB statt Client'). Default: no-op. Adapter, die Server-Latenz
+        aus einem Aggregat-Endpoint (z. B. weaviate /metrics) als Delta ueber das
+        Mess-Fenster bilden, nehmen hier den Vorher-Snapshot. Per-Query-Adapter
+        (Pinecone, Header) brauchen das nicht."""
+
+    def server_latency_summary(self) -> dict | None:
+        """Server-seitige Latenz ueber den Mess-Lauf, sofern die DB sie hergibt
+        (ohne Client/Netz). Default: None. Wird vom Runner nach dem Query-Loop
+        abgerufen und unter notes.server_latency_ms abgelegt."""
+        return None
+
     def teardown(self) -> None:
         """Verbindung schließen. Default: no-op."""
 
