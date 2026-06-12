@@ -1,0 +1,20 @@
+{
+  "name": "pgvector-S-ivfflat-throughput-c4",
+  "description": "pgvector IVFFlat, Stufe S, Durchsatz @ 4 Clients (HNSW-Build sprengt unter 8GB-Paritaet maintenance_work_mem -> IVFFlat fuer S+)",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1000,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 4
+  }
+}
