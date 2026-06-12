@@ -741,6 +741,12 @@ def real_measure(cfg: dict, demodata_dir: Path, dim: int, run_id: str,
     notes["gt_file"] = out.get("gt_file")
     if out.get("gt_note"):
         notes["gt_note"] = out["gt_note"]
+    # Server-seitige Latenz aus dem in-cluster Mess-Pfad (measure.py) durchreichen
+    # (weaviate /metrics; Pendant zum x-pinecone-request-latency-ms-Header).
+    if out.get("server_latency_ms"):
+        notes["server_latency_ms"] = out["server_latency_ms"]
+    if out.get("server_latency_error"):
+        notes["server_latency_error"] = out["server_latency_error"]
 
     resources = {
         "cpu_avg_cores": avg.cpu_avg_cores,

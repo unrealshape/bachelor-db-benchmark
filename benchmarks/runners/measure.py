@@ -96,6 +96,16 @@ def main():
         for i in range(n_warmup):
             do_query(i, queries[i])
 
+        # Server-seitiges Mess-Fenster oeffnen (nach Warmup, damit Warmup-Queries
+        # nicht ins Delta zaehlen). Adapter mit Aggregat-Endpoint (weaviate /metrics)
+        # nehmen hier den Vorher-Snapshot; per-Query-Adapter sind no-op.
+        server_latency_err = None
+        if hasattr(adapter, "begin_server_metrics"):
+            try:
+                adapter.begin_server_metrics()
+            except Exception as e:
+                server_latency_err = f"begin: {e}"
+
         lat, r1, r10, r100, p10, nd = [], [], [], [], [], []
         t0 = time.time()
         if concurrency <= 1:
@@ -109,6 +119,15 @@ def main():
                     lat.append(d); r1.append(a); r10.append(b)
                     r100.append(c); p10.append(p); nd.append(n)
         wall = time.time() - t0
+
+        # Server-seitige Latenz (z.B. weaviate /metrics queries_durations_ms als Delta
+        # ueber das Mess-Fenster) -- ohne Client/Netz. Pendant zum Pinecone-Header.
+        server_latency = None
+        if hasattr(adapter, "server_latency_summary"):
+            try:
+                server_latency = adapter.server_latency_summary()
+            except Exception as e:
+                server_latency_err = server_latency_err or str(e)
 
         metrics = {
             "throughput_qps": round(n_query / wall, 1) if wall > 0 else 0.0,
@@ -131,6 +150,8 @@ def main():
             "gt_file": gt_file,
             "gt_note": gt_note,
             "wall_s": round(wall, 2),
+            "server_latency_ms": server_latency,
+            "server_latency_error": server_latency_err,
         }
         outp = Path(args.out)
         outp.parent.mkdir(parents=True, exist_ok=True)
