@@ -204,23 +204,37 @@ class WeaviateAdapter(Adapter):
         self._in_cluster = os.environ.get("BENCH_IN_CLUSTER") == "1"
         # Vorher-Snapshot des queries_durations_ms-Histogramms (begin_server_metrics).
         self._srv_snapshot: dict | None = None
+        # Build/Query-Cache (in setup() aus index.params gesetzt).
+        self._build_cache: int | None = None
+        self._query_cache: int | None = None
 
     def _connect_client(self):
         import weaviate
-        if self._in_cluster:
-            http_host = os.environ.get(
-                "WEAVIATE_HTTP_HOST",
-                f"{WEAVIATE_HTTP_SERVICE}.{WEAVIATE_NAMESPACE}.svc.cluster.local")
-            grpc_host = os.environ.get(
-                "WEAVIATE_GRPC_HOST",
-                f"{WEAVIATE_GRPC_SERVICE}.{WEAVIATE_NAMESPACE}.svc.cluster.local")
-            return weaviate.connect_to_custom(
-                http_host=http_host, http_port=WEAVIATE_HTTP_PORT, http_secure=False,
-                grpc_host=grpc_host, grpc_port=WEAVIATE_GRPC_PORT, grpc_secure=False,
-            )
-        return weaviate.connect_to_local(
-            host="127.0.0.1", port=self._local_http, grpc_port=self._local_grpc,
-        )
+        # Nach einem pre-run reset (rollout restart) kann der gRPC-Health-Check beim
+        # Connect fehlschlagen, obwohl /v1/.well-known/ready (HTTP) schon 200 gibt --
+        # gRPC kommt minimal spaeter hoch. Bis ~60s retryen.
+        last_exc = None
+        deadline = time.time() + 60.0
+        while time.time() < deadline:
+            try:
+                if self._in_cluster:
+                    http_host = os.environ.get(
+                        "WEAVIATE_HTTP_HOST",
+                        f"{WEAVIATE_HTTP_SERVICE}.{WEAVIATE_NAMESPACE}.svc.cluster.local")
+                    grpc_host = os.environ.get(
+                        "WEAVIATE_GRPC_HOST",
+                        f"{WEAVIATE_GRPC_SERVICE}.{WEAVIATE_NAMESPACE}.svc.cluster.local")
+                    return weaviate.connect_to_custom(
+                        http_host=http_host, http_port=WEAVIATE_HTTP_PORT, http_secure=False,
+                        grpc_host=grpc_host, grpc_port=WEAVIATE_GRPC_PORT, grpc_secure=False,
+                    )
+                return weaviate.connect_to_local(
+                    host="127.0.0.1", port=self._local_http, grpc_port=self._local_grpc,
+                )
+            except Exception as e:
+                last_exc = e
+                time.sleep(2.0)
+        raise last_exc
 
     def attach(self) -> None:
         """Verbindet zu bereits befuellten Collections ohne Drop/Create
@@ -259,17 +273,21 @@ class WeaviateAdapter(Adapter):
                 self._client.collections.delete(name)
 
         p = self.index_params
-        # vectorCacheMaxObjects begrenzt die im RAM gehaltenen Vektoren auf das
-        # erzwungene 8-GiB-Pod-Limit (Paritaet): 1,0M x 4KB ≈ 4 GB Cache, Rest
-        # geht zusammen mit Go-Heap/Insert-Puffern unter GOMEMLIMIT=7000MiB auf.
-        # Ab Stufe S (2,4M) spillt damit >die Haelfte on-demand von Disk -> misst
-        # die "Index waechst raus"-Degradation (Thesis Kap 5) statt OOM-Crash.
-        # 3M (≈12 GB) wie zuvor sprengte das Budget -> OOMKill beim Insert.
+        # Build/Query-RAM-Entkopplung (Thesis Kap 5): der HNSW-Graph wird mit
+        # vectorCacheMaxObjects=BUILD (gross genug, dass die Stufe in den Cache passt,
+        # z.B. 3M @S) auf einem Build-Pod mit genug RAM (build_mem_gb) gebaut -> kein
+        # Disk-Thrash. Nach dem Build senkt build_index() den Cache auf den QUERY-Wert
+        # (Tier, z.B. 1M ≈ 8-GiB-Budget); danach resized der Runner den Pod auf das
+        # Serving-Budget (Pinecone s1.x1) -> ab S spillt der Cache von Disk = "Index
+        # waechst aus RAM" wird an der Query-Seite gemessen. weaviate-Storage ist
+        # persistent -> der Pod-Resize zwischen Build und Query verliert keine Daten.
+        self._build_cache = int(p.get("vector_cache_max_objects", 3_000_000))
+        self._query_cache = int(p.get("query_vector_cache_max_objects", 1_000_000))
         hnsw = Configure.VectorIndex.hnsw(
             ef=p.get("ef", 64),
             ef_construction=p.get("ef_construction", 128),
             max_connections=p.get("M", 16),
-            vector_cache_max_objects=p.get("vector_cache_max_objects", 1_000_000),
+            vector_cache_max_objects=self._build_cache,
             distance_metric=VectorDistances.COSINE,
         )
 
@@ -340,6 +358,26 @@ class WeaviateAdapter(Adapter):
                 f"{len(self._coll.batch.failed_objects)} failed inserts"
             )
 
+    def _vector_queue_len(self) -> int | None:
+        """Summe der noch nicht in den HNSW-Index aufgenommenen Vektoren ueber
+        alle Shards (ASYNC_INDEXING). None wenn nicht ermittelbar -> dann nicht
+        blockieren. Bei synchronem Indexing immer 0."""
+        cls = COLLECTION_VECS if self.variant == "B" else COLLECTION
+        try:
+            nodes = self._client.cluster.nodes(collection=cls, output="verbose")
+        except Exception:
+            return None
+        total = 0
+        found = False
+        for n in nodes:
+            for sh in (getattr(n, "shards", None) or []):
+                # weaviate-client v4 Shard-Modell: snake_case vector_queue_length.
+                q = getattr(sh, "vector_queue_length", None)
+                if q is not None:
+                    total += int(q)
+                    found = True
+        return total if found else None
+
     def build_index(self, build_text_index: bool | None = None) -> float:
         # build_text_index ignoriert: weaviate haelt den BM25-/inverted-Index
         # automatisch auf den Text-Properties (bei setup angelegt). Ein Ingest
@@ -354,7 +392,40 @@ class WeaviateAdapter(Adapter):
                 time.sleep(1.0)
                 break
             time.sleep(0.5)
+        # ASYNC_INDEXING: Objekte sind gespeichert, der HNSW-Index baut aber noch
+        # im Hintergrund aus der Queue. Erst wenn die Queue leer ist, ist der Index
+        # vollstaendig -> sonst misst der Measure einen halb gebauten Index (Recall
+        # zu niedrig). Unter 8-GiB-Budget kann der gebatchte Build dauern -> grosszuegiges
+        # Deadline. None (nicht ermittelbar / sync indexing) -> nicht blockieren.
+        idx_deadline = time.time() + 8 * 3600
+        stable_zero = 0
+        while time.time() < idx_deadline:
+            q = self._vector_queue_len()
+            if q is None:
+                break
+            if q == 0:
+                stable_zero += 1
+                if stable_zero >= 3:
+                    break
+            else:
+                stable_zero = 0
+            time.sleep(5.0)
         self._build_s = time.time() - t0
+
+        # Index ist vollstaendig gebaut. Jetzt den vectorCacheMaxObjects auf den
+        # QUERY-Wert senken (Build/Query-Entkopplung): danach resized der Runner den
+        # Pod auf das 8-GiB-Serving-Budget; beim Reload prefillt weaviate nur noch den
+        # Query-Cache (passt in 8 GiB), der Rest spillt von Disk = Mess-Phaenomen.
+        # Muss VOR dem Pod-Resize passieren, sonst OOMt der 8-GiB-Pod am Build-Cache-Prefill.
+        if self._query_cache and self._query_cache != self._build_cache:
+            from weaviate.classes.config import Reconfigure
+            target_coll = self._coll_vecs if self.variant == "B" else self._coll
+            with suppress(Exception):
+                target_coll.config.update(
+                    vector_index_config=Reconfigure.VectorIndex.hnsw(
+                        vector_cache_max_objects=self._query_cache,
+                    )
+                )
         return self._build_s
 
     # ---- queries ----------------------------------------------------------

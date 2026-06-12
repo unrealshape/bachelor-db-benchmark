@@ -35,6 +35,12 @@ env:
   # Go-GC am 8-GiB-Pod-Limit halten (cgroup-OOM zuvorkommen). Etwas Headroom
   # unter 8Gi fuer Off-Heap (mmap'd HNSW-Segmente, Insert-Puffer).
   GOMEMLIMIT: "7000MiB"
+  # Insert vom HNSW-Build entkoppeln: ab Stufe S passt der Index nicht in den
+  # vectorCacheMaxObjects-Cache (8-GiB-Paritaet) -> synchroner Per-Insert-Build
+  # thrasht auf Disk (~67 obj/s). Async-Queue baut gebatcht im Hintergrund.
+  # Der Adapter wartet in build_index bis vector_queue_length=0 (sonst misst der
+  # Recall einen halb gebauten Index).
+  ASYNC_INDEXING: "true"
 
 modules:
   text2vec-contextionary:

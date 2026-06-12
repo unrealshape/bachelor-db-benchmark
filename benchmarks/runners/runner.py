@@ -274,6 +274,7 @@ DB_WORKLOAD = {
 
 
 def pre_run_reset(db: str, mem_limit_gb: int | float | None = None,
+                  gomemlimit_mib: int | None = None,
                   timeout_s: int = 180) -> dict:
     """Pod-Restart vor jedem echten Lauf, damit der Index aus einem definierten
     Zustand neu aufgebaut wird (Thesis 5: Caches geleert, DB neugestartet).
@@ -281,10 +282,14 @@ def pre_run_reset(db: str, mem_limit_gb: int | float | None = None,
     OS-Page-Cache laesst sich in k3d nicht zuverlaessig droppen -- dokumentiert
     als Limitation. Effekt: DB-internen Cache nullen wir ueber den Pod-Restart.
 
-    mem_limit_gb (Speicherdruck-Achse): patcht das Container-Memory-Limit der
-    StatefulSet vor dem Restart. So wird derselbe M-Korpus unter sinkendem
-    Pod-RAM gemessen -> 'Index waechst raus'-Degradation (dokumentierte
-    Abweichung von der 8-GB-Paritaet)."""
+    mem_limit_gb: patcht das Container-Memory-Limit der StatefulSet vor dem
+    Restart. Build/Query-Entkopplung (Thesis Kap 5): Ingest patcht auf build_mem_gb
+    (genug RAM fuer den Index-Bau), Measure auf das Query-/Serving-Budget (8 GiB
+    Paritaet bzw. Speicherdruck-Tier) -> 'Index waechst raus' an der Query-Seite.
+
+    gomemlimit_mib (nur weaviate): setzt das Go-Soft-Memory-Limit passend zum
+    Pod-Limit (build hoch, query ~7000), damit der GC den Heap unter dem cgroup-
+    Limit haelt, ohne den Build kuenstlich zu drosseln."""
     namespace, _ = DB_POD[db]
     kind, name = DB_WORKLOAD[db]
     notes = {"pre_run_reset": "rollout-restart", "timeout_s": timeout_s}
@@ -302,6 +307,15 @@ def pre_run_reset(db: str, mem_limit_gb: int | float | None = None,
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
         )
         notes["mem_limit_gb"] = mem_limit_gb
+    if gomemlimit_mib:
+        print(f"  pre-run: set {kind}/{name} GOMEMLIMIT -> {gomemlimit_mib}MiB",
+              flush=True)
+        subprocess.run(
+            ["kubectl", "-n", namespace, "set", "env", f"{kind}/{name}",
+             f"GOMEMLIMIT={gomemlimit_mib}MiB"],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
+        )
+        notes["gomemlimit_mib"] = gomemlimit_mib
     print(f"  pre-run reset: rollout restart {kind}/{name}", flush=True)
     subprocess.run(
         ["kubectl", "-n", namespace, "rollout", "restart", f"{kind}/{name}"],
@@ -599,10 +613,17 @@ def real_ingest(cfg: dict, demodata_dir: Path, dim: int) -> dict:
     namespace, pod = DB_POD[cfg["db"]]
     sampler = ResourceSampler(namespace=namespace, pod=pod, interval_s=2.0)
 
+    # Build/Query-Entkopplung: der Ingest baut den Index mit BUILD-Budget (genug RAM,
+    # damit Graph-Indizes nicht auf Disk thrashen). Das Query/Serving-Budget (8 GiB
+    # Paritaet) stellt der Measure-Pfad her. build_mem_gb default = mem_limit_gb (kein
+    # Split) -> pgvector baut IVFFlat im 8-GiB-Budget, kein Override noetig.
+    build_mem = cfg.get("build_mem_gb") or cfg.get("mem_limit_gb")
     notes = {}
     if cfg.get("pre_run_reset", True):
         try:
-            notes.update(pre_run_reset(cfg["db"], mem_limit_gb=cfg.get("mem_limit_gb")))
+            notes.update(pre_run_reset(
+                cfg["db"], mem_limit_gb=build_mem,
+                gomemlimit_mib=cfg.get("build_gomemlimit_mib")))
         except subprocess.CalledProcessError as e:
             notes["pre_run_reset_error"] = str(e)
             print(f"  pre-run reset fehlgeschlagen: {e} -- fahre fort", flush=True)
@@ -645,6 +666,7 @@ def real_ingest(cfg: dict, demodata_dir: Path, dim: int) -> dict:
         "has_metadata": has_metadata,
         "text_index": True,
         "mem_limit_gb": cfg.get("mem_limit_gb"),
+        "build_mem_gb": build_mem,
         "insert_resources": {
             "cpu_avg_cores": avg.cpu_avg_cores,
             "mem_avg_mb": avg.mem_avg_mb,
@@ -686,10 +708,25 @@ def real_measure(cfg: dict, demodata_dir: Path, dim: int, run_id: str,
         "has_metadata": manifest.get("has_metadata"),
         "mem_limit_gb": manifest.get("mem_limit_gb"),
     }
-    # Methodik-Note: Im entkoppelten Modus wird der Pod NICHT pro Messung neu
-    # gestartet (UNLOGGED-Truncation-Risiko, s.o.). Cache-Kaltstart deckt der
-    # Warmup-Discard ab. Bewusste, dokumentierte Abweichung vom Restart-Hook.
-    notes["pre_run_reset"] = "skipped (decoupled, warmup-discard)"
+    # Query/Serving-Budget herstellen (Build/Query-Entkopplung) + Cache-Clear-Restart.
+    # weaviate: persistenter Storage -> Pod-Resize aufs Query-Tier (8 GiB Paritaet bzw.
+    # Speicherdruck-Tier mem_limit_gb) verliert keine Daten; der Build-Pod war groesser.
+    # Der Restart vor der Messung leert zugleich den DB-Cache (Thesis-Methodik). Beim
+    # Reload prefillt weaviate nur den in build_index gesenkten Query-Cache (passt in 8 GiB).
+    # pgvector: UNLOGGED-Tabellen wuerden beim Restart truncaten -> KEIN Restart; Build=Query=8 GiB,
+    # Cache-Kaltstart deckt der Warmup-Discard ab (bewusste, dokumentierte Abweichung).
+    if cfg["db"] == "weaviate" and cfg.get("pre_run_reset", True):
+        q_mem = cfg.get("mem_limit_gb", 8)
+        try:
+            notes.update(pre_run_reset(
+                "weaviate", mem_limit_gb=q_mem,
+                gomemlimit_mib=cfg.get("query_gomemlimit_mib", 7000)))
+            notes["query_mem_gb"] = q_mem
+        except subprocess.CalledProcessError as e:
+            notes["pre_run_reset_error"] = str(e)
+            print(f"  measure pre-run resize fehlgeschlagen: {e} -- fahre fort", flush=True)
+    else:
+        notes["pre_run_reset"] = "skipped (decoupled, warmup-discard)"
 
     sampler.start()
     print("  in-cluster measure (Job, entkoppelt)...", flush=True)

@@ -8,13 +8,14 @@ data:
   00_extension.sql: |
     CREATE EXTENSION IF NOT EXISTS vector;
     CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-  # Auf 8-GB-Pod-Limit dimensioniert (Thesis-Paritaet 2 vCPU / 8 GB). shared_buffers
-  # + maintenance_work_mem + dshm + Overhead muessen unter 8 GiB bleiben. pgvector
-  # nutzt IVFFlat ab S (HNSW-Build sprengt das Budget) -> der leichte k-means-Build
-  # kommt mit 1 GB maintenance_work_mem aus.
+  # 8-GB-Pod-Limit ist das QUERY/Serving-Budget (Thesis-Paritaet 2 vCPU / 8 GB,
+  # Pinecone s1.x1). Der Index (~10-20 GB on-disk) > (shared_buffers + OS-Cache @8 GiB)
+  # -> Spill = "Index waechst aus RAM" wird an der Query-Seite gemessen. pgvector nutzt
+  # IVFFlat ab S (baut im Budget, kein Build/Query-Resize noetig); HNSW nur S0/S1.
+  # maintenance_work_mem 2 GB: nur Build-Zeit (IVFFlat-k-means), beeinflusst Query-RAM nicht.
   01_tuning.sql: |
     ALTER SYSTEM SET shared_buffers = '2GB';
-    ALTER SYSTEM SET maintenance_work_mem = '1GB';
+    ALTER SYSTEM SET maintenance_work_mem = '2GB';
     ALTER SYSTEM SET autovacuum_work_mem = '256MB';
     ALTER SYSTEM SET max_parallel_maintenance_workers = '2';
     ALTER SYSTEM SET max_parallel_workers_per_gather = '2';
