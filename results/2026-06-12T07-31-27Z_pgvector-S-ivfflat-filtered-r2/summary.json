@@ -1,0 +1,80 @@
+{
+  "run_id": "2026-06-12T07-31-27Z_pgvector-S-ivfflat-filtered-r2",
+  "config_name": "pgvector-S-ivfflat-filtered",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-12T07:31:27Z",
+  "finished_at": "2026-06-12T07:36:53Z",
+  "duration_s": 7526,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S",
+    "n_vectors": 2650000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 10.0
+  },
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1000,
+      "probes": 10
+    },
+    "build_time_s": 268.8,
+    "size_on_disk_mb": 20710.9453125
+  },
+  "workload": {
+    "profile": "filtered",
+    "n_queries": 10000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 6.1,
+    "latency_ms_mean": 164.59,
+    "latency_ms_p50": 149.84,
+    "latency_ms_p95": 311.0,
+    "latency_ms_p99": 482.78,
+    "recall_at_1": 0.685,
+    "recall_at_10": 0.6429,
+    "recall_at_100": 0.5731,
+    "precision_at_10": 0.6429,
+    "ndcg_at_10": 0.7408
+  },
+  "resources": {
+    "cpu_avg_cores": 0.4319,
+    "mem_avg_mb": 7452.0,
+    "cpu_peak_cores": 0.494,
+    "mem_peak_mb": 7489.0,
+    "disk_read_mb": 141463.7,
+    "disk_write_mb": 21.0,
+    "disk_read_ios": 1629001,
+    "disk_write_ios": 46,
+    "samples": 155
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-12T07:10:46Z",
+    "ingest_config": "pgvector-S-ivfflat",
+    "insert_time_s": 1049.52,
+    "n_vectors_actual": 2650000,
+    "has_metadata": true,
+    "mem_limit_gb": null,
+    "pre_run_reset": "skipped (decoupled, warmup-discard)",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_filter_rating_gte_4_ids.npy",
+    "mode": "measure-only",
+    "repeat_group": "2026-06-12T07-25-59Z_pgvector-S-ivfflat-filtered",
+    "repeat_index": 2,
+    "repeat_total": 3
+  }
+}
