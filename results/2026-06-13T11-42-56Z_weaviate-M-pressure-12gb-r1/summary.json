@@ -1,0 +1,99 @@
+{
+  "run_id": "2026-06-13T11-42-56Z_weaviate-M-pressure-12gb-r1",
+  "config_name": "weaviate-M-pressure-12gb",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-13T11:42:56Z",
+  "finished_at": "2026-06-13T11:54:01Z",
+  "duration_s": 7865,
+  "status": "ok",
+  "db": {
+    "name": "weaviate",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "M",
+    "n_vectors": 5250000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 20.0
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16,
+      "vector_cache_max_objects": 4500000,
+      "query_vector_cache_max_objects": 1000000
+    },
+    "build_time_s": 28802.4,
+    "size_on_disk_mb": 34719.6
+  },
+  "workload": {
+    "profile": "topk",
+    "n_queries": 2000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 3.0,
+    "latency_ms_mean": 330.43,
+    "latency_ms_p50": 317.43,
+    "latency_ms_p95": 532.57,
+    "latency_ms_p99": 601.8,
+    "recall_at_1": 0.683,
+    "recall_at_10": 0.6587,
+    "recall_at_100": 0.5668,
+    "precision_at_10": 0.6587,
+    "ndcg_at_10": 0.7558
+  },
+  "resources": {
+    "cpu_avg_cores": 0.5621,
+    "mem_avg_mb": 8100.8,
+    "cpu_peak_cores": 0.736,
+    "mem_peak_mb": 9945.0,
+    "disk_read_mb": 394241.8,
+    "disk_write_mb": 2.1,
+    "disk_read_ios": 4705080,
+    "disk_write_ios": 120,
+    "samples": 306
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-13T10:53:08Z",
+    "ingest_config": "weaviate-M-latency",
+    "insert_time_s": 2726.32,
+    "n_vectors_actual": 5250000,
+    "has_metadata": true,
+    "mem_limit_gb": 12,
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "gomemlimit_mib": 10000,
+    "query_mem_gb": 12,
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_ids.npy",
+    "server_latency_ms": {
+      "source": "weaviate_prometheus",
+      "metric": "queries_durations_ms",
+      "class_name": "Bench",
+      "query_type": "get_graphql",
+      "count": 1000,
+      "count_all_types": 1000,
+      "mean_ms": 328.109,
+      "windowed": true,
+      "p50_ms": 317.13,
+      "p95_ms": 719.101,
+      "p99_ms": 943.82
+    },
+    "mode": "measure-only",
+    "repeat_group": "2026-06-13T11-42-56Z_weaviate-M-pressure-12gb",
+    "repeat_index": 1,
+    "repeat_total": 3
+  }
+}
