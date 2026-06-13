@@ -1,0 +1,25 @@
+{
+  "name": "weaviate-M-pressure-20gb",
+  "description": "weaviate, Stufe M @ 20Gi Pod-RAM (Speicherdruck-Achse)",
+  "db": "weaviate",
+  "stufe": "M",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16,
+      "vector_cache_max_objects": 4500000,
+      "query_vector_cache_max_objects": 1000000
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 20,
+  "query_gomemlimit_mib": 18000
+}
