@@ -252,6 +252,14 @@ class PgvectorAdapter(Adapter):
         t0 = time.time()
         tbl = self._vec_table
         with self._conn.cursor() as cur:
+            # Build-Speicher pro Lauf hochsetzen, wenn die Config es vorgibt: der
+            # IVFFlat-Build skaliert mit n (Stufe M @5,25M braucht ~5,7 GB, der
+            # globale Default 2 GB reicht nur bis ~S). Session-GUC -> nur dieser
+            # Ingest, beeinflusst die Query-RAM-Paritaet nicht. Tier-abhaengig in
+            # der Config (8-GiB-Tier kann den Build-Speicher nicht stellen -> Befund).
+            mwm = self.cfg.get("maintenance_work_mem_mb")
+            if mwm:
+                cur.execute(f"SET maintenance_work_mem = '{int(mwm)}MB'")
             if self._index_type == "hnsw":
                 m = p.get("m", 16)
                 efc = p.get("ef_construction", 128)

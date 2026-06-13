@@ -41,19 +41,21 @@ QUERY_DURATION_METRIC = "queries_durations_ms"
 
 
 def _parse_query_durations(text: str, class_name: str) -> dict | None:
-    """Aggregiert das `queries_durations_ms`-Histogramm aus dem /metrics-Text
-    ueber alle query_type-Labels der gegebenen class_name. Liefert
-    {sum, count, buckets:{le->count}} oder None, wenn die Metrik fehlt.
+    """Parst das `queries_durations_ms`-Histogramm aus dem /metrics-Text der
+    gegebenen class_name, **getrennt nach query_type**. Liefert
+    {query_type: {sum, count, buckets:{le->count}}} oder None, wenn die Metrik fehlt.
 
-    Zeilen ohne class_name-Label werden mitgezaehlt (Fallback fuer aeltere
-    weaviate-Schemata), Zeilen mit anderer class_name uebersprungen."""
+    Die Trennung nach query_type ist wichtig: ueber das Mess-Fenster koennen neben
+    der gemessenen Workload (z.B. get_graphql) auch andere/langsamere Query-Typen
+    laufen; ein Aggregat ueber alle wuerde die Perzentile verfaelschen. server_latency_
+    summary waehlt den dominanten query_type (groesster Delta-Count). Zeilen ohne
+    class_name-Label zaehlen als Fallback mit; Zeilen anderer class_name werden uebersprungen."""
     import re
-    sum_ms = 0.0
-    count = 0.0
-    buckets: dict[float, float] = {}
-    found = False
     cls_re = re.compile(r'class_name="([^"]*)"')
+    qt_re = re.compile(r'query_type="([^"]*)"')
     le_re = re.compile(r'le="([^"]*)"')
+    out: dict[str, dict] = {}
+    found = False
 
     for line in text.splitlines():
         if not line or line[0] == "#" or not line.startswith(QUERY_DURATION_METRIC):
@@ -63,23 +65,24 @@ def _parse_query_durations(text: str, class_name: str) -> dict | None:
         m = cls_re.search(line)
         if m and m.group(1) != class_name:
             continue
+        qt_m = qt_re.search(line)
+        qt = qt_m.group(1) if qt_m else ""
         try:
             val = float(line.rsplit(" ", 1)[1])
         except (ValueError, IndexError):
             continue
+        d = out.setdefault(qt, {"sum": 0.0, "count": 0.0, "buckets": {}})
         if suffix == "_sum":
-            sum_ms += val; found = True
+            d["sum"] += val; found = True
         elif suffix == "_count":
-            count += val; found = True
+            d["count"] += val; found = True
         elif suffix == "_bucket":
             le = le_re.search(line)
             if le:
                 key = float("inf") if le.group(1) in ("+Inf", "Inf") else float(le.group(1))
-                buckets[key] = buckets.get(key, 0.0) + val
+                d["buckets"][key] = d["buckets"].get(key, 0.0) + val
                 found = True
-    if not found:
-        return None
-    return {"sum": sum_ms, "count": count, "buckets": buckets}
+    return out if found else None
 
 
 def _fetch_metrics_text(host: str, port: int, timeout_s: float = 5.0) -> str | None:
@@ -555,31 +558,44 @@ class WeaviateAdapter(Adapter):
         self._srv_snapshot = self._scrape_durations()
 
     def server_latency_summary(self) -> dict | None:
-        """Server-seitige Query-Latenz aus dem queries_durations_ms-Histogramm,
-        als Delta gegen den begin_server_metrics-Snapshot (= reines Mess-Fenster,
-        Warmup raus). Liefert mean + p50/p95/p99 in ms, ohne Client/gRPC/Netz."""
+        """Server-seitige Query-Latenz aus dem queries_durations_ms-Histogramm, als
+        Delta gegen den begin_server_metrics-Snapshot (= reines Mess-Fenster, Warmup
+        raus), ohne Client/gRPC/Netz. Pro query_type getrennt; Perzentile aus dem
+        DOMINANTEN query_type (groesster Delta-Count = gemessene Workload), damit
+        langsamere interne Query-Typen die p95/p99 nicht verfaelschen."""
         now = self._scrape_durations()
         if now is None:
             return None
-        snap = self._srv_snapshot or {"sum": 0.0, "count": 0.0, "buckets": {}}
-        d_sum = now["sum"] - snap.get("sum", 0.0)
-        d_count = now["count"] - snap.get("count", 0.0)
-        if d_count <= 0:
+        snap = self._srv_snapshot or {}
+        deltas = {}
+        total_count = 0.0
+        for qt, d in now.items():
+            s = snap.get(qt, {})
+            dc = d["count"] - s.get("count", 0.0)
+            if dc <= 0:
+                continue
+            ds = d["sum"] - s.get("sum", 0.0)
+            snap_b = s.get("buckets", {})
+            db = {le: cnt - snap_b.get(le, 0.0) for le, cnt in d["buckets"].items()}
+            deltas[qt] = {"count": dc, "sum": ds, "buckets": db}
+            total_count += dc
+        if not deltas:
             return None
-        snap_buckets = snap.get("buckets", {})
-        d_buckets = {le: cnt - snap_buckets.get(le, 0.0)
-                     for le, cnt in now["buckets"].items()}
+        dom_qt = max(deltas, key=lambda k: deltas[k]["count"])
+        dom = deltas[dom_qt]
         cls = COLLECTION_VECS if self.variant == "B" else COLLECTION
         out = {
             "source": "weaviate_prometheus",
             "metric": QUERY_DURATION_METRIC,
             "class_name": cls,
-            "count": int(d_count),
-            "mean_ms": round(d_sum / d_count, 3),
+            "query_type": dom_qt or "(none)",
+            "count": int(dom["count"]),
+            "count_all_types": int(total_count),
+            "mean_ms": round(dom["sum"] / dom["count"], 3),
             "windowed": self._srv_snapshot is not None,
         }
         for q, name in ((0.50, "p50_ms"), (0.95, "p95_ms"), (0.99, "p99_ms")):
-            val = _histogram_quantile(d_buckets, q)
+            val = _histogram_quantile(dom["buckets"], q)
             if val is not None:
                 out[name] = round(val, 3)
         return out

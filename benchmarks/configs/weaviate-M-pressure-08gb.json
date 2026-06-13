@@ -11,12 +11,15 @@
     "params": {
       "ef": 64,
       "ef_construction": 128,
-      "M": 16
+      "M": 16,
+      "vector_cache_max_objects": 4500000,
+      "query_vector_cache_max_objects": 1000000
     }
   },
   "queries": {
     "n": 2000,
     "concurrency": 1
   },
-  "mem_limit_gb": 8
+  "mem_limit_gb": 8,
+  "query_gomemlimit_mib": 7000
 }

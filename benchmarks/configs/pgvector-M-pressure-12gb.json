@@ -17,5 +17,6 @@
     "n": 2000,
     "concurrency": 1
   },
-  "mem_limit_gb": 12
+  "mem_limit_gb": 12,
+  "maintenance_work_mem_mb": 6144
 }
