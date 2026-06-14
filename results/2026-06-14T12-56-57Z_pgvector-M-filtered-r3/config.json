@@ -1,0 +1,25 @@
+{
+  "name": "pgvector-M-filtered",
+  "description": "pgvector IVFFlat, Stufe M, Metadatenfilter rating>=4 (Query-Typ-Vergleich @20Gi -- pgvector-M-IVFFlat baut nur @20Gi, UNLOGGED kann fuer 8Gi-Paritaet nicht resizen)",
+  "db": "pgvector",
+  "stufe": "M",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "filtered",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 4900,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "filter": {
+    "rating_gte": 4
+  },
+  "mem_limit_gb": 20,
+  "maintenance_work_mem_mb": 6144
+}
