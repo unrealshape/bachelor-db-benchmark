@@ -329,6 +329,23 @@ def pre_run_reset(db: str, mem_limit_gb: int | float | None = None,
     return notes
 
 
+class _NoopSampler:
+    """Resource-Sampler-Ersatz fuer externe DBs (z.B. Pinecone): es gibt keinen
+    lokalen k8s-Pod zum Sampeln. start()/stop() sind no-ops; stop() liefert eine
+    Null-Ressourcen-Struktur mit denselben Feldern wie der echte Sampler."""
+
+    def start(self) -> None:
+        pass
+
+    def stop(self):
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            cpu_avg_cores=None, mem_avg_mb=None, cpu_peak_cores=None,
+            mem_peak_mb=None, disk_read_mb=None, disk_write_mb=None,
+            disk_read_ios=None, disk_write_ios=None, n_samples=0,
+        )
+
+
 def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None):
     """Führt einen echten Run aus, gibt (metrics_dict, build_time_s, size_mb,
     resources_dict, cluster_dict, notes) zurück.
@@ -364,12 +381,17 @@ def real_run(cfg: dict, demodata_dir: Path, dim: int, run_id: str | None = None)
 
     # Cluster-Stammdaten einmalig, Resource-Sampler über die ganze Lauf-Dauer.
     cluster = cluster_info()
-    namespace, pod = DB_POD[cfg["db"]]
-    sampler = ResourceSampler(namespace=namespace, pod=pod, interval_s=2.0)
+    # Externe DBs (Pinecone) laufen in der Cloud -- kein k8s-Pod zum Sampeln/Resetten.
+    external = cfg["db"] not in DB_POD
+    if external:
+        sampler = _NoopSampler()
+    else:
+        namespace, pod = DB_POD[cfg["db"]]
+        sampler = ResourceSampler(namespace=namespace, pod=pod, interval_s=2.0)
 
     notes = {}
-    # Pre-Run-Hook: Pod-Restart, sofern nicht in der Config abgewaehlt.
-    if cfg.get("pre_run_reset", True):
+    # Pre-Run-Hook: Pod-Restart, sofern nicht in der Config abgewaehlt (entfaellt extern).
+    if cfg.get("pre_run_reset", True) and not external:
         try:
             notes.update(pre_run_reset(cfg["db"], mem_limit_gb=cfg.get("mem_limit_gb")))
         except subprocess.CalledProcessError as e:

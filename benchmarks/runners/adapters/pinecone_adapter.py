@@ -73,6 +73,8 @@ class PineconeAdapter(Adapter):
         p = self.index_params
         self._pod_type: str = p.get("pod_type", DEFAULT_POD_TYPE)
         self._pods: int = int(p.get("pods", DEFAULT_PODS))
+        # "pod" (Default, s1.x1 -- Methodik) oder "serverless" (Fallback ohne Pod-Quota).
+        self._spec_kind: str = str(p.get("spec", "pod")).lower()
         # `region` in der Config kann "aws-us-east-1" oder "us-east-1" sein.
         cloud_cfg = p.get("cloud")
         region_cfg = p.get("region") or os.environ.get("PINECONE_REGION", DEFAULT_REGION)
@@ -170,7 +172,7 @@ class PineconeAdapter(Adapter):
     # ---- lifecycle --------------------------------------------------------
 
     def setup(self) -> None:
-        from pinecone import Pinecone, PodSpec
+        from pinecone import Pinecone, PodSpec, ServerlessSpec
 
         api_key = os.environ.get("PINECONE_API_KEY")
         if not api_key:
@@ -192,11 +194,16 @@ class PineconeAdapter(Adapter):
                     break
                 time.sleep(2.0)
 
-        spec = PodSpec(
-            environment=self._environment,
-            pod_type=self._pod_type,
-            pods=self._pods,
-        )
+        # spec="serverless" (config) -> ServerlessSpec; sonst Pod-Tier (Default, Methodik).
+        # Serverless ist NICHT hardware-aequivalent zu s1.x1 -- nur Fallback ohne Pod-Quota.
+        if self._spec_kind == "serverless":
+            spec = ServerlessSpec(cloud=self._cloud, region=self._region)
+        else:
+            spec = PodSpec(
+                environment=self._environment,
+                pod_type=self._pod_type,
+                pods=self._pods,
+            )
         self._pc.create_index(
             name=self._index_name,
             dimension=self.dim,
