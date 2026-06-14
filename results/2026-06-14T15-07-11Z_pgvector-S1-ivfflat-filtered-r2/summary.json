@@ -1,0 +1,80 @@
+{
+  "run_id": "2026-06-14T15-07-11Z_pgvector-S1-ivfflat-filtered-r2",
+  "config_name": "pgvector-S1-ivfflat-filtered",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-14T15:07:11Z",
+  "finished_at": "2026-06-14T15:08:53Z",
+  "duration_s": 7302,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S1",
+    "n_vectors": 1350000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 5.0
+  },
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1200,
+      "probes": 10
+    },
+    "build_time_s": 157.83,
+    "size_on_disk_mb": 10556.2578125
+  },
+  "workload": {
+    "profile": "filtered",
+    "n_queries": 2000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 20.7,
+    "latency_ms_mean": 48.32,
+    "latency_ms_p50": 43.28,
+    "latency_ms_p95": 93.08,
+    "latency_ms_p99": 123.58,
+    "recall_at_1": 0.623,
+    "recall_at_10": 0.5818,
+    "recall_at_100": 0.507,
+    "precision_at_10": 0.5818,
+    "ndcg_at_10": 0.6923
+  },
+  "resources": {
+    "cpu_avg_cores": 0.3983,
+    "mem_avg_mb": 7469.8,
+    "cpu_peak_cores": 0.437,
+    "mem_peak_mb": 7495.0,
+    "disk_read_mb": 14616.9,
+    "disk_write_mb": 52.9,
+    "disk_read_ios": 341482,
+    "disk_write_ios": 104,
+    "samples": 49
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-14T15:00:37Z",
+    "ingest_config": "pgvector-S1-ivfflat",
+    "insert_time_s": 522.73,
+    "n_vectors_actual": 1350000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "skipped (decoupled, warmup-discard)",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_filter_rating_gte_4_ids.npy",
+    "mode": "measure-only",
+    "repeat_group": "2026-06-14T15-05-27Z_pgvector-S1-ivfflat-filtered",
+    "repeat_index": 2,
+    "repeat_total": 3
+  }
+}
