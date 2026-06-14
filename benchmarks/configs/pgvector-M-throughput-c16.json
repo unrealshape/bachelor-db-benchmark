@@ -1,0 +1,22 @@
+{
+  "name": "pgvector-M-throughput-c16",
+  "description": "pgvector IVFFlat, Stufe M, Durchsatz @ 16 Clients, @20Gi",
+  "db": "pgvector",
+  "stufe": "M",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 4900,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 16
+  },
+  "mem_limit_gb": 20,
+  "maintenance_work_mem_mb": 6144
+}

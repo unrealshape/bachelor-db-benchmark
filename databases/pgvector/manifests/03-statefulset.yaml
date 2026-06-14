@@ -58,12 +58,17 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
+          # Liveness bewusst grosszuegig: unter schwerem COPY (5,25M+ Reviews bei
+          # Stufe M/L) kann pg_isready transient timeouten -> Default (3x10s=30s)
+          # killt den Pod mitten im Insert ("server closed connection"). 6x20s=120s
+          # Grace deckt die Insert-Last ab. Probe-Timing ist keine Mess-Metrik.
           livenessProbe:
             exec:
               command: ["pg_isready", "-U", "bench", "-d", "benchmark"]
             initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
       volumes:
         - name: init
           configMap:

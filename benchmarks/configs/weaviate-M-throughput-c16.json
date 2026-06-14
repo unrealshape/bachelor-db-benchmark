@@ -1,0 +1,27 @@
+{
+  "name": "weaviate-M-throughput-c16",
+  "description": "weaviate HNSW, Stufe M, Durchsatz @ 16 Clients, @20Gi (Index auf PVC)",
+  "db": "weaviate",
+  "stufe": "M",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16,
+      "vector_cache_max_objects": 4500000,
+      "query_vector_cache_max_objects": 1000000
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 16
+  },
+  "build_mem_gb": 22,
+  "build_gomemlimit_mib": 20000,
+  "mem_limit_gb": 20,
+  "query_gomemlimit_mib": 18000
+}
