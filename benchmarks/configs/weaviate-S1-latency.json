@@ -1,6 +1,6 @@
 {
   "name": "weaviate-S1-latency",
-  "description": "weaviate, Stufe S1, Single-Query Latenz (HNSW)",
+  "description": "weaviate HNSW, Stufe S1, latency (Build@14Gi -> Query@8Gi-Paritaet)",
   "db": "weaviate",
   "stufe": "S1",
   "dim": 1024,
@@ -11,11 +11,17 @@
     "params": {
       "ef": 64,
       "ef_construction": 128,
-      "M": 16
+      "M": 16,
+      "vector_cache_max_objects": 1500000,
+      "query_vector_cache_max_objects": 1000000
     }
   },
   "queries": {
     "n": 2000,
     "concurrency": 1
-  }
+  },
+  "build_mem_gb": 14,
+  "build_gomemlimit_mib": 12000,
+  "mem_limit_gb": 8,
+  "query_gomemlimit_mib": 7000
 }

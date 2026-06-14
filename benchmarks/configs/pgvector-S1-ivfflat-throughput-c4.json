@@ -1,11 +1,11 @@
 {
-  "name": "pgvector-S1-ivfflat",
-  "description": "pgvector IVFFlat, Stufe S1, Single-Query Latenz (topk) @8Gi-Paritaet",
+  "name": "pgvector-S1-ivfflat-throughput-c4",
+  "description": "pgvector IVFFlat, Stufe S1, Durchsatz @4 Clients @8Gi",
   "db": "pgvector",
   "stufe": "S1",
   "dim": 1024,
   "variant": "A",
-  "workload": "topk",
+  "workload": "batch",
   "index": {
     "type": "ivfflat",
     "params": {
@@ -15,7 +15,7 @@
   },
   "queries": {
     "n": 2000,
-    "concurrency": 1
+    "concurrency": 4
   },
   "mem_limit_gb": 8
 }
