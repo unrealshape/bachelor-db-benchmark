@@ -62,6 +62,27 @@ def _wait_for(host: str, port: int, timeout_s: float = 120.0) -> None:
     raise RuntimeError(f"timeout waiting for {host}:{port}")
 
 
+def _establish_port_forward(local_port: int, attempts: int = 8) -> subprocess.Popen:
+    """Port-forward auf svc/pgvector robust aufbauen. Direkt nach einem rollout-restart
+    hat der Service noch keine ready Endpoints -> `kubectl port-forward svc/...` stirbt
+    sofort und der lokale Port bindet nie (_wait_for liefe dann nur in den Timeout).
+    Daher den Forward mehrfach neu aufsetzen, bis der Port wirklich steht."""
+    last = None
+    for _ in range(attempts):
+        pf = _port_forward(local_port)
+        try:
+            _wait_for("127.0.0.1", local_port, timeout_s=15.0)
+            return pf
+        except RuntimeError as e:
+            last = e
+            try:
+                pf.terminate()
+            except Exception:
+                pass
+            time.sleep(4)
+    raise RuntimeError(f"port-forward auf 127.0.0.1:{local_port} nicht aufbaubar: {last}")
+
+
 def _vec_to_pg(vec: np.ndarray) -> str:
     """Serialisiert einen Vektor in das pgvector-Textformat: '[1,2,3]'."""
     # repr ohne Wissenschaft: explizit f-format
@@ -124,8 +145,7 @@ class PgvectorAdapter(Adapter):
         """Verbindet zu einer bereits befuellten DB ohne Schema-Drop (Mess-Pad
         im Cluster). Setzt Such-Parameter fuer die neue Session."""
         if not self._in_cluster and os.environ.get("PG_SKIP_PORTFORWARD") != "1":
-            self._pf = _port_forward(self._local_port)
-            _wait_for("127.0.0.1", self._local_port)
+            self._pf = _establish_port_forward(self._local_port)
         self._conn = self._connect()
         self._apply_search_params()
 
@@ -137,8 +157,7 @@ class PgvectorAdapter(Adapter):
 
     def setup(self) -> None:
         if not self._in_cluster and os.environ.get("PG_SKIP_PORTFORWARD") != "1":
-            self._pf = _port_forward(self._local_port)
-            _wait_for("127.0.0.1", self._local_port)
+            self._pf = _establish_port_forward(self._local_port)
 
         self._conn = self._connect()
         with self._conn.cursor() as cur:
