@@ -38,8 +38,11 @@ internal/draft/
 .demodata/
 demodata-cache/
 
-# Ad-hoc WSL-Setup/Run-Skripte (operativ, nicht Teil der Codebase)
+# Ad-hoc WSL-Experiment-Skripte (throwaway, nicht Teil der Codebase).
+# Reproduzierbarkeits-relevante Skripte (Kampagnen _run-*, Daten-Gen _gen-*,
+# Cluster-Recreate) sind dagegen getrackt -- siehe Ausnahme unten.
 _wsl_*.sh
+!_wsl_recreate.sh
 
 # Lokale Tool-Artefakte
 .claude-flow/
