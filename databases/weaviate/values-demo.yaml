@@ -1,0 +1,38 @@
+image:
+  registry: cr.weaviate.io
+  repo: semitechnologies/weaviate
+  tag: "1.37.6"
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "2"
+    memory: "2Gi"
+
+storage:
+  size: 5Gi
+  storageClassName: local-path
+
+authentication:
+  anonymous_access:
+    enabled: true
+
+service:
+  type: ClusterIP
+
+env:
+  PROMETHEUS_MONITORING_ENABLED: "true"
+  PROMETHEUS_MONITORING_PORT: 2112
+  GOMEMLIMIT: "1500MiB"
+  ASYNC_INDEXING: "true"
+
+modules:
+  text2vec-contextionary:
+    enabled: false
+  text2vec-transformers:
+    enabled: false
