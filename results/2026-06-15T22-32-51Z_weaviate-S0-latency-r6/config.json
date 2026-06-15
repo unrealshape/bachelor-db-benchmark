@@ -1,0 +1,21 @@
+{
+  "name": "weaviate-S0-latency",
+  "description": "weaviate, Stufe S0, Single-Query Latenz (HNSW)",
+  "db": "weaviate",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  }
+}
