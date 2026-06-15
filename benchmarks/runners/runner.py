@@ -10,7 +10,7 @@ Dummy:
 
 Entkoppelt (Roadmap Punkt 0 -- 1x ingest, N Messungen; macht S/M fahrbar):
     runner.py --config pgvector-S-latency  --ingest-only      # einmal befuellen
-    runner.py --config pgvector-S-latency  --measure-only --repeat 3
+    runner.py --config pgvector-S-latency  --measure-only --repeat 6
     runner.py --config pgvector-S-filtered --measure-only     # selber Index
 Der Ingest baut bei pgvector den Text-Index mit -> EIN Ingest pro (DB,Stufe,
 Variante) bedient alle vier Workloads. --measure-only startet den Pod NICHT neu
@@ -47,6 +47,7 @@ SPEC_VERSION = "1024-bge-v2"
 STUFE_VECTORS = {
     "T":       20_000,   # Dev-Pipeline (Synthese, nicht in der Thesis)
     "T2":     100_000,   # Stabilisierungs-Runs (Synthese, nicht in der Thesis)
+    "XS":     100_000,   # feasible Stufe (~0,4 GB) -- RQ4-Unteranker (echte Reviews, 100k)
     "S0":     500_000,   # feasible Stufe (~2 GB) -- unterer Kurvenpunkt
     "S1":   1_200_000,   # feasible Stufe (~5 GB)
     "S":    2_400_000,   # feasible Stufe (~10 GB) -- Haupt-Stufe
@@ -60,6 +61,7 @@ STUFE_VECTORS = {
 STUFE_GB = {
     "T":     0.10,
     "T2":    0.56,
+    "XS":    0.40,
     "S0":    2.0,
     "S1":    5.0,
     "S":    10.0,
@@ -930,7 +932,7 @@ def main():
             _cfg_peek = load_config(args.config) if args.config else {}
         except SystemExit:
             _cfg_peek = {}
-        prod_stage = _cfg_peek.get("stufe") in {"S0", "S1", "S", "M", "L", "XL", "XXL"}
+        prod_stage = _cfg_peek.get("stufe") in {"XS", "S0", "S1", "S", "M", "L", "XL", "XXL"}
         args.push = bool(prod_stage and not args.dummy)
 
     if args.list:

@@ -109,6 +109,7 @@ BGE_QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages
 # feasiblen Stufen (Redesign 2026-06); L/XL/XXL bleiben als Referenz, werden
 # auf 32-GB-Hardware aber nicht gefahren. Gekoppelt an runner.STUFE_VECTORS.
 STAGE_GB = {
+    "XS":  0.4,
     "S0":  2,
     "S1":  5,
     "S":   10,
