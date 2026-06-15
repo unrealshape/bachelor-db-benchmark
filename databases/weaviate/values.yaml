@@ -27,6 +27,13 @@ authentication:
 service:
   type: ClusterIP
 
+# gRPC-Service eigener Key (Chart-Default ist LoadBalancer -> erzeugt sonst
+# k3d-svclb-Shim-Pods). In-Cluster-Messung verbindet via ClusterIP-DNS, daher
+# kein LoadBalancer noetig -> spart die Shim-Pods.
+grpcService:
+  enabled: true
+  type: ClusterIP
+
 # Server-seitige Latenz-Metriken: Prometheus-Endpoint auf :2112 (/metrics).
 # Liefert u.a. Query-Latenz-Histogramme -> p50/p95/p99 server-seitig.
 env:

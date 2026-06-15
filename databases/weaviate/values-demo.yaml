@@ -25,6 +25,12 @@ authentication:
 service:
   type: ClusterIP
 
+# gRPC-Service auf ClusterIP (Chart-Default LoadBalancer -> k3d-svclb-Shims).
+# In-Cluster-Messung braucht kein LoadBalancer.
+grpcService:
+  enabled: true
+  type: ClusterIP
+
 env:
   PROMETHEUS_MONITORING_ENABLED: "true"
   PROMETHEUS_MONITORING_PORT: 2112
