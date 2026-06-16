@@ -1,0 +1,22 @@
+{
+  "name": "weaviate-XS-latency",
+  "description": "weaviate, Stufe XS, Single-Query Latenz (HNSW)",
+  "db": "weaviate",
+  "stufe": "XS",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8
+}
