@@ -1,0 +1,97 @@
+{
+  "run_id": "2026-06-16T12-21-56Z_weaviate-S0-tune-hnsw-notune-r6",
+  "config_name": "weaviate-S0-tune-hnsw-notune",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-16T12:21:56Z",
+  "finished_at": "2026-06-16T12:22:29Z",
+  "duration_s": 7233,
+  "status": "ok",
+  "db": {
+    "name": "weaviate",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S0",
+    "n_vectors": 550000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 2.0
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "M": 8,
+      "ef_construction": 32,
+      "ef": 10
+    },
+    "build_time_s": 16.06,
+    "size_on_disk_mb": 3504.7
+  },
+  "workload": {
+    "profile": "topk",
+    "n_queries": 1000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 405.4,
+    "latency_ms_mean": 2.44,
+    "latency_ms_p50": 2.39,
+    "latency_ms_p95": 2.99,
+    "latency_ms_p99": 3.54,
+    "recall_at_1": 0.556,
+    "recall_at_10": 0.5684,
+    "recall_at_100": 0.4662,
+    "precision_at_10": 0.5684,
+    "ndcg_at_10": 0.6712
+  },
+  "resources": {
+    "cpu_avg_cores": 0.123,
+    "mem_avg_mb": 294.0,
+    "cpu_peak_cores": 0.123,
+    "mem_peak_mb": 294.0,
+    "disk_read_mb": 0.0,
+    "disk_write_mb": 0.0,
+    "disk_read_ios": 0,
+    "disk_write_ios": 0,
+    "samples": 5
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-16T12:18:37Z",
+    "ingest_config": "weaviate-S0-tune-hnsw-notune",
+    "insert_time_s": 203.01,
+    "n_vectors_actual": 550000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "gomemlimit_mib": 7000,
+    "query_mem_gb": 8,
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_ids.npy",
+    "server_latency_ms": {
+      "source": "weaviate_prometheus",
+      "metric": "queries_durations_ms",
+      "class_name": "Bench",
+      "query_type": "get_graphql",
+      "count": 1000,
+      "count_all_types": 1000,
+      "mean_ms": 1.343,
+      "windowed": true,
+      "p50_ms": 5.0,
+      "p95_ms": 9.5,
+      "p99_ms": 9.9
+    },
+    "mode": "measure-only",
+    "repeat_group": "2026-06-16T12-18-37Z_weaviate-S0-tune-hnsw-notune",
+    "repeat_index": 6,
+    "repeat_total": 6
+  }
+}

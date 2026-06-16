@@ -1,0 +1,22 @@
+{
+  "name": "weaviate-S0-tune-efsweep-ef064",
+  "description": "weaviate, S0, ef_search-Sweep ef=64 (fester HNSW-Bau)",
+  "db": "weaviate",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "M": 16,
+      "ef_construction": 128,
+      "ef": 64
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8
+}

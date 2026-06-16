@@ -1,0 +1,81 @@
+{
+  "run_id": "2026-06-16T10-45-12Z_pgvector-S0-tune-hybrid-a70-r5",
+  "config_name": "pgvector-S0-tune-hybrid-a70",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-16T10:45:12Z",
+  "finished_at": "2026-06-16T10:45:34Z",
+  "duration_s": 7222,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S0",
+    "n_vectors": 550000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 2.0
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "M": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    },
+    "build_time_s": 620.94,
+    "size_on_disk_mb": 4249.4296875
+  },
+  "workload": {
+    "profile": "hybrid",
+    "n_queries": 1000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 113.5,
+    "latency_ms_mean": 8.78,
+    "latency_ms_p50": 4.39,
+    "latency_ms_p95": 9.52,
+    "latency_ms_p99": 97.21,
+    "recall_at_1": 0.337,
+    "recall_at_10": 0.7055,
+    "recall_at_100": 0.5875,
+    "precision_at_10": 0.7055,
+    "ndcg_at_10": 0.7875
+  },
+  "resources": {
+    "cpu_avg_cores": 0.6326,
+    "mem_avg_mb": 7309.8,
+    "cpu_peak_cores": 1.02,
+    "mem_peak_mb": 7319.0,
+    "disk_read_mb": 0.0,
+    "disk_write_mb": 0.0,
+    "disk_read_ios": 0,
+    "disk_write_ios": 0,
+    "samples": 11
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-16T10:24:48Z",
+    "ingest_config": "pgvector-S0-tune-efsweep-ef064",
+    "insert_time_s": 203.94,
+    "n_vectors_actual": 550000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "skipped (decoupled, warmup-discard)",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_hybrid_alpha_70_ids.npy",
+    "mode": "measure-only",
+    "repeat_group": "2026-06-16T10-43-15Z_pgvector-S0-tune-hybrid-a70",
+    "repeat_index": 5,
+    "repeat_total": 6
+  }
+}

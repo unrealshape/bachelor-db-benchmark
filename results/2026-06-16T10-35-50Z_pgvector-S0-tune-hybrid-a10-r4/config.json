@@ -1,0 +1,25 @@
+{
+  "name": "pgvector-S0-tune-hybrid-a10",
+  "description": "pgvector, S0, Hybrid-RRF alpha=0.1 (BM25<->Vektor Mix, K=60)",
+  "db": "pgvector",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "hybrid",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "M": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8,
+  "hybrid": {
+    "alpha": 0.1
+  }
+}

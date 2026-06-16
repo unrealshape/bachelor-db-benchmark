@@ -1,0 +1,24 @@
+{
+  "name": "pgvector-S0-B-filtered",
+  "description": "pgvector IVFFlat, Stufe S0, Variante B (Vektoren/Metadaten getrennt, JOIN via id), filtered @8Gi",
+  "db": "pgvector",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "B",
+  "workload": "filtered",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 500,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8,
+  "filter": {
+    "rating_gte": 4
+  }
+}

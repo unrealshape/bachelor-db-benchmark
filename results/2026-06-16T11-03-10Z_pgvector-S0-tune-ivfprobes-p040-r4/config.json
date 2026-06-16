@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S0-tune-ivfprobes-p040",
+  "description": "pgvector, S0, IVFFlat probes=40 (lists=500 fest)",
+  "db": "pgvector",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 500,
+      "probes": 40
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8
+}

@@ -1,0 +1,25 @@
+{
+  "name": "weaviate-XS-filtered",
+  "description": "weaviate, Stufe XS, Metadatenfilter rating>=4",
+  "db": "weaviate",
+  "stufe": "XS",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "filtered",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8,
+  "filter": {
+    "rating_gte": 4
+  }
+}

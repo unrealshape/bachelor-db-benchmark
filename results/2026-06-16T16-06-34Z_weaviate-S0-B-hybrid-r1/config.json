@@ -1,0 +1,30 @@
+{
+  "name": "weaviate-S0-B-hybrid",
+  "description": "weaviate HNSW, Stufe S0, Variante B (BenchVecs+BenchMeta getrennt), hybrid (Build@10->Query@8)",
+  "db": "weaviate",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "B",
+  "workload": "hybrid",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16,
+      "vector_cache_max_objects": 600000,
+      "query_vector_cache_max_objects": 600000
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "build_mem_gb": 10,
+  "build_gomemlimit_mib": 8000,
+  "mem_limit_gb": 8,
+  "query_gomemlimit_mib": 7000,
+  "hybrid": {
+    "alpha": 0.5
+  }
+}

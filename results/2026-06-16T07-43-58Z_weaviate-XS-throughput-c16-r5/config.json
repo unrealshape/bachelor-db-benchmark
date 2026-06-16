@@ -1,0 +1,22 @@
+{
+  "name": "weaviate-XS-throughput-c16",
+  "description": "weaviate, Stufe XS, Durchsatz @ 16 Clients",
+  "db": "weaviate",
+  "stufe": "XS",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 16
+  },
+  "mem_limit_gb": 8
+}

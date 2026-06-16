@@ -1,0 +1,22 @@
+{
+  "name": "weaviate-S0-tune-hnsw-max",
+  "description": "weaviate, S0, HNSW-Leiter Sprosse 'max' (M=48, ef_c=512, ef_search=256)",
+  "db": "weaviate",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "M": 48,
+      "ef_construction": 512,
+      "ef": 256
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8
+}
