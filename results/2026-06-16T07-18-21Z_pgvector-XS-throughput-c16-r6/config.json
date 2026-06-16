@@ -1,0 +1,22 @@
+{
+  "name": "pgvector-XS-throughput-c16",
+  "description": "pgvector, Stufe XS, Durchsatz @ 16 Clients",
+  "db": "pgvector",
+  "stufe": "XS",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 64
+    }
+  },
+  "queries": {
+    "n": 10000,
+    "concurrency": 16
+  },
+  "mem_limit_gb": 8
+}
