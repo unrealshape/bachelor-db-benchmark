@@ -1,0 +1,27 @@
+{
+  "name": "weaviate-S-B-latency",
+  "description": "weaviate HNSW, Stufe S, Variante B (BenchVecs+BenchMeta getrennt), latency (Build@20->Query@8)",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "B",
+  "workload": "topk",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16,
+      "vector_cache_max_objects": 3000000,
+      "query_vector_cache_max_objects": 1000000
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "build_mem_gb": 20,
+  "build_gomemlimit_mib": 18000,
+  "mem_limit_gb": 8,
+  "query_gomemlimit_mib": 7000
+}

@@ -1,0 +1,80 @@
+{
+  "run_id": "2026-06-16T21-38-01Z_pgvector-S-B-throughput-c16-r4",
+  "config_name": "pgvector-S-B-throughput-c16",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-16T21:38:01Z",
+  "finished_at": "2026-06-16T21:42:51Z",
+  "duration_s": 7490,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S",
+    "n_vectors": 2650000,
+    "dim": 1024,
+    "variant": "B",
+    "size_gb": 10.0
+  },
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1000,
+      "probes": 10
+    },
+    "build_time_s": 256.48,
+    "size_on_disk_mb": 20710.9453125
+  },
+  "workload": {
+    "profile": "batch",
+    "n_queries": 2000,
+    "concurrency": 16
+  },
+  "metrics": {
+    "throughput_qps": 6.8,
+    "latency_ms_mean": 2336.64,
+    "latency_ms_p50": 2323.8,
+    "latency_ms_p95": 2980.38,
+    "latency_ms_p99": 3363.25,
+    "recall_at_1": 0.687,
+    "recall_at_10": 0.6641,
+    "recall_at_100": 0.5916,
+    "precision_at_10": 0.6641,
+    "ndcg_at_10": 0.758
+  },
+  "resources": {
+    "cpu_avg_cores": 0.475,
+    "mem_avg_mb": 7453.7,
+    "cpu_peak_cores": 0.548,
+    "mem_peak_mb": 7526.0,
+    "disk_read_mb": 126844.1,
+    "disk_write_mb": 0.0,
+    "disk_read_ios": 1338790,
+    "disk_write_ios": 0,
+    "samples": 137
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-16T18:58:00Z",
+    "ingest_config": "pgvector-S-B-ivfflat",
+    "insert_time_s": 915.51,
+    "n_vectors_actual": 2650000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "skipped (decoupled, warmup-discard)",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_ids.npy",
+    "mode": "measure-only",
+    "repeat_group": "2026-06-16T21-23-47Z_pgvector-S-B-throughput-c16",
+    "repeat_index": 4,
+    "repeat_total": 6
+  }
+}

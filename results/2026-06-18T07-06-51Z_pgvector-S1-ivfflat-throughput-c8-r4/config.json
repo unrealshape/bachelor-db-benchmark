@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S1-ivfflat-throughput-c8",
+  "description": "pgvector IVFFlat, Stufe S1, Durchsatz @8 Clients @8Gi",
+  "db": "pgvector",
+  "stufe": "S1",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "batch",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1200,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 8
+  },
+  "mem_limit_gb": 8
+}

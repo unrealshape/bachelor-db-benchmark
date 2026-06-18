@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S-B-ivfflat",
+  "description": "pgvector IVFFlat, Stufe S, Variante B (Vektoren/Metadaten getrennt, JOIN via id), ivfflat @8Gi",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "B",
+  "workload": "topk",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1000,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8
+}

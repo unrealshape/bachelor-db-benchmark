@@ -1,0 +1,80 @@
+{
+  "run_id": "2026-06-18T07-08-39Z_pgvector-S1-ivfflat-throughput-c8-r5",
+  "config_name": "pgvector-S1-ivfflat-throughput-c8",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-18T07:08:39Z",
+  "finished_at": "2026-06-18T07:10:21Z",
+  "duration_s": 7302,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S1",
+    "n_vectors": 1350000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 5.0
+  },
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1200,
+      "probes": 10
+    },
+    "build_time_s": 162.47,
+    "size_on_disk_mb": 10556.2578125
+  },
+  "workload": {
+    "profile": "batch",
+    "n_queries": 2000,
+    "concurrency": 8
+  },
+  "metrics": {
+    "throughput_qps": 20.8,
+    "latency_ms_mean": 383.62,
+    "latency_ms_p50": 377.74,
+    "latency_ms_p95": 486.58,
+    "latency_ms_p99": 529.6,
+    "recall_at_1": 0.677,
+    "recall_at_10": 0.637,
+    "recall_at_100": 0.5571,
+    "precision_at_10": 0.637,
+    "ndcg_at_10": 0.7365
+  },
+  "resources": {
+    "cpu_avg_cores": 0.37,
+    "mem_avg_mb": 7447.3,
+    "cpu_peak_cores": 0.422,
+    "mem_peak_mb": 7464.0,
+    "disk_read_mb": 16761.8,
+    "disk_write_mb": 64.5,
+    "disk_read_ios": 400891,
+    "disk_write_ios": 442,
+    "samples": 49
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-18T07:01:29Z",
+    "ingest_config": "pgvector-S1-ivfflat",
+    "insert_time_s": 546.25,
+    "n_vectors_actual": 1350000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "skipped (decoupled, warmup-discard)",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_ids.npy",
+    "mode": "measure-only",
+    "repeat_group": "2026-06-18T07-01-30Z_pgvector-S1-ivfflat-throughput-c8",
+    "repeat_index": 5,
+    "repeat_total": 6
+  }
+}

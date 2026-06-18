@@ -1,0 +1,99 @@
+{
+  "run_id": "2026-06-16T18-12-40Z_weaviate-S-B-filtered-r5",
+  "config_name": "weaviate-S-B-filtered",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-16T18:12:40Z",
+  "finished_at": "2026-06-16T18:16:20Z",
+  "duration_s": 7420,
+  "status": "ok",
+  "db": {
+    "name": "weaviate",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S",
+    "n_vectors": 2650000,
+    "dim": 1024,
+    "variant": "B",
+    "size_gb": 10.0
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16,
+      "vector_cache_max_objects": 3000000,
+      "query_vector_cache_max_objects": 1000000
+    },
+    "build_time_s": 2959.66,
+    "size_on_disk_mb": 18145.1
+  },
+  "workload": {
+    "profile": "filtered",
+    "n_queries": 2000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 10.4,
+    "latency_ms_mean": 95.9,
+    "latency_ms_p50": 92.64,
+    "latency_ms_p95": 142.31,
+    "latency_ms_p99": 167.21,
+    "recall_at_1": 0.953,
+    "recall_at_10": 0.9511,
+    "recall_at_100": 0.903,
+    "precision_at_10": 0.9517,
+    "ndcg_at_10": 0.9681
+  },
+  "resources": {
+    "cpu_avg_cores": 1.0981,
+    "mem_avg_mb": 6034.6,
+    "cpu_peak_cores": 1.189,
+    "mem_peak_mb": 6567.0,
+    "disk_read_mb": 0.1,
+    "disk_write_mb": 0.0,
+    "disk_read_ios": 1,
+    "disk_write_ios": 0,
+    "samples": 96
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-16T17:42:37Z",
+    "ingest_config": "weaviate-S-B-latency",
+    "insert_time_s": 1346.83,
+    "n_vectors_actual": 2650000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "gomemlimit_mib": 7000,
+    "query_mem_gb": 8,
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_filter_rating_gte_4_ids.npy",
+    "server_latency_ms": {
+      "source": "weaviate_prometheus",
+      "metric": "queries_durations_ms",
+      "class_name": "BenchVecs",
+      "query_type": "get_graphql",
+      "count": 1000,
+      "count_all_types": 1000,
+      "mean_ms": 63.718,
+      "windowed": true,
+      "p50_ms": 66.054,
+      "p95_ms": 233.333,
+      "p99_ms": 446.667
+    },
+    "mode": "measure-only",
+    "repeat_group": "2026-06-16T17-52-11Z_weaviate-S-B-filtered",
+    "repeat_index": 5,
+    "repeat_total": 6
+  }
+}

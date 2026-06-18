@@ -1,0 +1,24 @@
+{
+  "name": "pgvector-S-tune-hybrid-a70",
+  "description": "pgvector, S, Hybrid-RRF alpha=0.7 (IVFFlat, K=60)",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "hybrid",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 2400,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "hybrid": {
+    "alpha": 0.7
+  },
+  "mem_limit_gb": 8
+}

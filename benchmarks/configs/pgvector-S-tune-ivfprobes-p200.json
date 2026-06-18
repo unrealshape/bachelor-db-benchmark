@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S-tune-ivfprobes-p200",
+  "description": "pgvector, Stufe S, IVFFlat probes=200 (lists=2400 fest)",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 2400,
+      "probes": 200
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "mem_limit_gb": 8
+}

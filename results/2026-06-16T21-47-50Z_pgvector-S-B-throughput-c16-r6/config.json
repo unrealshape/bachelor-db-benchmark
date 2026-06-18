@@ -1,0 +1,21 @@
+{
+  "name": "pgvector-S-B-throughput-c16",
+  "description": "pgvector IVFFlat, Stufe S, Variante B (Vektoren/Metadaten getrennt, JOIN via id), throughput-c16 @8Gi",
+  "db": "pgvector",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "B",
+  "workload": "batch",
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1000,
+      "probes": 10
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 16
+  },
+  "mem_limit_gb": 8
+}
