@@ -1,0 +1,80 @@
+{
+  "run_id": "2026-06-19T06-19-44Z_pgvector-S1-tune-hybrid-a10-r1",
+  "config_name": "pgvector-S1-tune-hybrid-a10",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-19T06:19:44Z",
+  "finished_at": "2026-06-19T06:23:43Z",
+  "duration_s": 7439,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S1",
+    "n_vectors": 1350000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 5.0
+  },
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 1200,
+      "probes": 10
+    },
+    "build_time_s": 160.1,
+    "size_on_disk_mb": 10556.2578125
+  },
+  "workload": {
+    "profile": "hybrid",
+    "n_queries": 1000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 8.9,
+    "latency_ms_mean": 112.75,
+    "latency_ms_p50": 95.76,
+    "latency_ms_p95": 178.68,
+    "latency_ms_p99": 301.19,
+    "recall_at_1": 0.024,
+    "recall_at_10": 0.0288,
+    "recall_at_100": 0.0357,
+    "precision_at_10": 0.0288,
+    "ndcg_at_10": 0.0337
+  },
+  "resources": {
+    "cpu_avg_cores": 0.5411,
+    "mem_avg_mb": 6726.1,
+    "cpu_peak_cores": 1.311,
+    "mem_peak_mb": 7471.0,
+    "disk_read_mb": 36363.2,
+    "disk_write_mb": 1904.9,
+    "disk_read_ios": 1158646,
+    "disk_write_ios": 8122,
+    "samples": 114
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-19T06:19:44Z",
+    "ingest_config": "pgvector-S1-ivfflat",
+    "insert_time_s": 541.61,
+    "n_vectors_actual": 1350000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "skipped (decoupled, warmup-discard)",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_hybrid_alpha_10_ids.npy",
+    "mode": "measure-only",
+    "repeat_group": "2026-06-19T06-19-44Z_pgvector-S1-tune-hybrid-a10",
+    "repeat_index": 1,
+    "repeat_total": 6
+  }
+}
