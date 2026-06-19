@@ -1,0 +1,97 @@
+{
+  "run_id": "2026-06-19T01-10-21Z_weaviate-S-tune-hybrid-a30-r1",
+  "config_name": "weaviate-S-tune-hybrid-a30",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-19T01:10:21Z",
+  "finished_at": "2026-06-19T01:13:55Z",
+  "duration_s": 7414,
+  "status": "ok",
+  "db": {
+    "name": "weaviate",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S",
+    "n_vectors": 2650000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 10.0
+  },
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    },
+    "build_time_s": 3134.73,
+    "size_on_disk_mb": 16076.7
+  },
+  "workload": {
+    "profile": "hybrid",
+    "n_queries": 1000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 10.6,
+    "latency_ms_mean": 93.97,
+    "latency_ms_p50": 40.48,
+    "latency_ms_p95": 359.86,
+    "latency_ms_p99": 740.86,
+    "recall_at_1": 0.207,
+    "recall_at_10": 0.2503,
+    "recall_at_100": 0.3002,
+    "precision_at_10": 0.2503,
+    "ndcg_at_10": 0.2821
+  },
+  "resources": {
+    "cpu_avg_cores": 1.4363,
+    "mem_avg_mb": 5509.1,
+    "cpu_peak_cores": 1.549,
+    "mem_peak_mb": 6721.0,
+    "disk_read_mb": 0.0,
+    "disk_write_mb": 0.0,
+    "disk_read_ios": 0,
+    "disk_write_ios": 0,
+    "samples": 94
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-19T00:41:51Z",
+    "ingest_config": "weaviate-S-latency",
+    "insert_time_s": 1100.24,
+    "n_vectors_actual": 2650000,
+    "has_metadata": true,
+    "mem_limit_gb": 8,
+    "pre_run_reset": "rollout-restart",
+    "timeout_s": 180,
+    "gomemlimit_mib": 7000,
+    "query_mem_gb": 8,
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_hybrid_alpha_30_ids.npy",
+    "server_latency_ms": {
+      "source": "weaviate_prometheus",
+      "metric": "queries_durations_ms",
+      "class_name": "Bench",
+      "query_type": "get_graphql",
+      "count": 1000,
+      "count_all_types": 1000,
+      "mean_ms": 92.814,
+      "windowed": true,
+      "p50_ms": 42.924,
+      "p95_ms": 463.485,
+      "p99_ms": 833.333
+    },
+    "mode": "measure-only",
+    "repeat_group": "2026-06-19T01-10-21Z_weaviate-S-tune-hybrid-a30",
+    "repeat_index": 1,
+    "repeat_total": 6
+  }
+}

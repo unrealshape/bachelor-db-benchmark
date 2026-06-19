@@ -1,0 +1,80 @@
+{
+  "run_id": "2026-06-18T19-55-52Z_pgvector-S-tune-hybrid-a70-r2",
+  "config_name": "pgvector-S-tune-hybrid-a70",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-18T19:55:52Z",
+  "finished_at": "2026-06-18T20:06:25Z",
+  "duration_s": 7833,
+  "status": "ok",
+  "db": {
+    "name": "pgvector",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S",
+    "n_vectors": 2650000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 10.0
+  },
+  "index": {
+    "type": "ivfflat",
+    "params": {
+      "lists": 2400,
+      "probes": 10
+    },
+    "build_time_s": 276.68,
+    "size_on_disk_mb": 20710.9453125
+  },
+  "workload": {
+    "profile": "hybrid",
+    "n_queries": 1000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 3.2,
+    "latency_ms_mean": 314.15,
+    "latency_ms_p50": 281.07,
+    "latency_ms_p95": 469.27,
+    "latency_ms_p99": 812.34,
+    "recall_at_1": 0.341,
+    "recall_at_10": 0.5926,
+    "recall_at_100": 0.5658,
+    "precision_at_10": 0.5926,
+    "ndcg_at_10": 0.6942
+  },
+  "resources": {
+    "cpu_avg_cores": 0.4949,
+    "mem_avg_mb": 7450.7,
+    "cpu_peak_cores": 1.999,
+    "mem_peak_mb": 7522.0,
+    "disk_read_mb": 175076.7,
+    "disk_write_mb": 0.0,
+    "disk_read_ios": 3028665,
+    "disk_write_ios": 0,
+    "samples": 300
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "measured": "in-cluster",
+    "decoupled": true,
+    "ingested_at": "2026-06-18T16:40:45Z",
+    "ingest_config": "pgvector-S-ivfflat",
+    "insert_time_s": 1021.04,
+    "n_vectors_actual": 2650000,
+    "has_metadata": true,
+    "mem_limit_gb": null,
+    "pre_run_reset": "skipped (decoupled, warmup-discard)",
+    "n_queries_executed": 1000,
+    "n_warmup": 1000,
+    "gt_file": "ground_truth_hybrid_alpha_70_ids.npy",
+    "mode": "measure-only",
+    "repeat_group": "2026-06-18T19-45-10Z_pgvector-S-tune-hybrid-a70",
+    "repeat_index": 2,
+    "repeat_total": 6
+  }
+}

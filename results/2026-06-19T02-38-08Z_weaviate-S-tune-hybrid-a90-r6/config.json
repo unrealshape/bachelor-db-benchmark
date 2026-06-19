@@ -1,0 +1,26 @@
+{
+  "name": "weaviate-S-tune-hybrid-a90",
+  "description": "weaviate, S, Hybrid-RRF alpha=0.9 (HNSW, K=60)",
+  "db": "weaviate",
+  "stufe": "S",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "hybrid",
+  "index": {
+    "type": "hnsw",
+    "params": {
+      "ef": 64,
+      "ef_construction": 128,
+      "M": 16
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "hybrid": {
+    "alpha": 0.9
+  },
+  "mem_limit_gb": 8,
+  "build_mem_gb": 20
+}
