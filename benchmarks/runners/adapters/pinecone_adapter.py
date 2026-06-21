@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 
 import numpy as np
@@ -39,7 +40,15 @@ DEFAULT_REGION = "us-east-1"
 DEFAULT_METRIC = "cosine"
 
 # Antwort-Header, in dem Pinecone die Server-Zeit (ohne Netz) liefert.
-SERVER_LATENCY_HEADER = "x-pinecone-request-latency-ms"
+# Server-seitige Verarbeitungszeit pro Request. Der offizielle Java-Client liest
+# `x-pinecone-response-duration-ms` (Serverless liefert genau den -- der frueher
+# verwendete `x-pinecone-request-latency-ms` ist Pod-Tier-only). Beide als
+# Kandidaten, damit es auf beiden Tiers funktioniert.
+SERVER_LATENCY_HEADERS = (
+    "x-pinecone-response-duration-ms",
+    "x-pinecone-request-latency-ms",
+)
+SERVER_LATENCY_HEADER = SERVER_LATENCY_HEADERS[0]  # Rueckwaertskompatibel
 
 
 def _split_region(region: str) -> tuple[str, str]:
@@ -67,7 +76,11 @@ class PineconeAdapter(Adapter):
         super().__init__(cfg, dim)
         self._pc = None
         self._index = None
-        self._index_name: str = cfg.get("index_name") or cfg["name"]
+        # Pinecone-Indexnamen: nur Kleinbuchstaben, Ziffern, Bindestriche. Der
+        # Fallback auf cfg["name"] (z.B. "pinecone-S-latency") enthaelt Grossbuch-
+        # staben -> normalisieren, damit jede Config ohne explizites index_name laeuft.
+        _raw_name = cfg.get("index_name") or cfg["name"]
+        self._index_name: str = _raw_name.lower().replace("_", "-")
         self._build_s: float | None = None
         # Pod-Konfig aus index.params, mit env-Fallbacks fuer Region/Cloud.
         p = self.index_params
@@ -123,14 +136,15 @@ class PineconeAdapter(Adapter):
         adapter = self
 
         def _capture(headers) -> None:
-            try:
-                v = headers.get(SERVER_LATENCY_HEADER)
-                if v is None:
+            for h in SERVER_LATENCY_HEADERS:
+                try:
+                    v = headers.get(h)
+                    if v is None:
+                        continue
+                    adapter._tls.last_server_ms = float(v)
                     return
-                ms = float(v)
-            except (TypeError, ValueError):
-                return
-            adapter._tls.last_server_ms = ms
+                except (TypeError, ValueError):
+                    continue
 
         for cand in candidates:
             if cand is None:
@@ -246,8 +260,25 @@ class PineconeAdapter(Adapter):
             )
 
         n = len(ids)
-        BATCH = 100
+        # Pinecone-Limit ~2 MB / Upsert -> bei 1024-dim float32 (~4 KB/Vektor)
+        # sind 200 sicher. Der eigentliche Hebel ist Parallelitaet: synchrone
+        # Einzel-Upserts sind netz-latenz-gebunden (~100 Vek/s); mehrere
+        # gleichzeitige Calls heben den Durchsatz um eine Groessenordnung.
+        BATCH = 200
+        PARALLEL = 10   # serverless drosselt; zu viele parallele Calls -> Timeouts
         ids_list = ids.tolist()
+
+        def _upsert_retry(b):
+            # Serverless-Writes timeouten transient -> mit Backoff erneut versuchen,
+            # damit ein einzelner Hänger nicht den ganzen Ingest killt.
+            for attempt in range(5):
+                try:
+                    self._index.upsert(vectors=b)
+                    return
+                except Exception:
+                    if attempt == 4:
+                        raise
+                    time.sleep(2 ** attempt)
 
         def _meta_row(j: int) -> dict | None:
             if metadata is None:
@@ -269,6 +300,8 @@ class PineconeAdapter(Adapter):
                     row[c] = str(v)
             return row or None
 
+        # Batches vorbauen, dann parallel upserten (netz-latenz-gebunden).
+        batches = []
         for start in range(0, n, BATCH):
             end = min(start + BATCH, n)
             batch = []
@@ -281,7 +314,9 @@ class PineconeAdapter(Adapter):
                 if meta is not None:
                     rec["metadata"] = meta
                 batch.append(rec)
-            self._index.upsert(vectors=batch)
+            batches.append(batch)
+        with ThreadPoolExecutor(max_workers=PARALLEL) as ex:
+            list(ex.map(_upsert_retry, batches))
 
     def build_index(self, build_text_index: bool | None = None) -> float:
         """Pinecone baut den Index waehrend des Upserts; wir warten nur bis

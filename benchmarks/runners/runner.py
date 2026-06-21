@@ -634,8 +634,13 @@ def real_ingest(cfg: dict, demodata_dir: Path, dim: int) -> dict:
     AdapterCls = get_adapter(cfg["db"])
     adapter = AdapterCls(cfg, dim=dim)
     cluster = cluster_info()
-    namespace, pod = DB_POD[cfg["db"]]
-    sampler = ResourceSampler(namespace=namespace, pod=pod, interval_s=2.0)
+    # Externe DBs (Pinecone) laufen in der Cloud -- kein k8s-Pod zum Sampeln/Resetten.
+    external = cfg["db"] not in DB_POD
+    if external:
+        sampler = _NoopSampler()
+    else:
+        namespace, pod = DB_POD[cfg["db"]]
+        sampler = ResourceSampler(namespace=namespace, pod=pod, interval_s=2.0)
 
     # Build/Query-Entkopplung: der Ingest baut den Index mit BUILD-Budget (genug RAM,
     # damit Graph-Indizes nicht auf Disk thrashen). Das Query/Serving-Budget (8 GiB

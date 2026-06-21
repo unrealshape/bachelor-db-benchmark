@@ -1,0 +1,71 @@
+{
+  "run_id": "2026-06-20T16-27-20Z_pinecone-S0-latency-r6",
+  "config_name": "pinecone-S0-latency",
+  "spec_version": "1024-bge-v2",
+  "started_at": "2026-06-20T16:27:20Z",
+  "finished_at": "2026-06-20T17:03:54Z",
+  "duration_s": 9394,
+  "status": "ok",
+  "db": {
+    "name": "pinecone",
+    "version": null,
+    "image": null
+  },
+  "dataset": {
+    "size_label": "S0",
+    "n_vectors": 550000,
+    "dim": 1024,
+    "variant": "A",
+    "size_gb": 2.0
+  },
+  "index": {
+    "type": "serverless",
+    "params": {
+      "spec": "serverless",
+      "region": "aws-us-east-1",
+      "metric": "cosine"
+    },
+    "build_time_s": 7.18,
+    "size_on_disk_mb": null
+  },
+  "workload": {
+    "profile": "topk",
+    "n_queries": 2000,
+    "concurrency": 1
+  },
+  "metrics": {
+    "throughput_qps": 8.4,
+    "latency_ms_mean": 119.38,
+    "latency_ms_p50": 113.08,
+    "latency_ms_p95": 125.57,
+    "latency_ms_p99": 361.2,
+    "recall_at_1": 0.951,
+    "recall_at_10": 0.9403,
+    "recall_at_100": 0.9302,
+    "precision_at_10": 0.9403,
+    "ndcg_at_10": 0.961
+  },
+  "resources": {
+    "cpu_avg_cores": null,
+    "mem_avg_mb": null,
+    "cpu_peak_cores": null,
+    "mem_peak_mb": null,
+    "samples": 0
+  },
+  "cluster": {
+    "k8s_version": "v1.31.4+k3s1",
+    "nodes": 4
+  },
+  "notes": {
+    "insert_time_s": 1934.84,
+    "n_vectors_actual": 550000,
+    "has_metadata": true,
+    "gt_file": "ground_truth_ids.npy",
+    "n_warmup": 1000,
+    "n_queries_executed": 1000,
+    "mode": "real",
+    "repeat_group": "2026-06-20T13-25-17Z_pinecone-S0-latency",
+    "repeat_index": 6,
+    "repeat_total": 6
+  }
+}

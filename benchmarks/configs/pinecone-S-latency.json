@@ -1,21 +1,23 @@
 {
   "name": "pinecone-S-latency",
-  "description": "Pinecone Pod s1.x1, Stufe S, Single-Query Latenz",
+  "description": "Pinecone SERVERLESS (kein Pod-Quota -> keine s1.x1-Paritaet, Fallback; Latenz client+Netz, nur Recall vergleichbar). Stufe S, Single-Query.",
   "db": "pinecone",
   "stufe": "S",
   "dim": 1024,
   "variant": "A",
   "workload": "topk",
   "index": {
-    "type": "hnsw",
+    "type": "serverless",
     "params": {
-      "pod_type": "s1.x1",
-      "pods": 1,
-      "region": "aws-us-east-1"
+      "spec": "serverless",
+      "region": "aws-us-east-1",
+      "metric": "cosine"
     }
   },
   "queries": {
     "n": 10000,
     "concurrency": 1
-  }
+  },
+  "index_name": "bench-s-latency",
+  "pre_run_reset": false
 }

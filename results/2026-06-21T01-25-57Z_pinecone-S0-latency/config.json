@@ -1,0 +1,23 @@
+{
+  "name": "pinecone-S0-latency",
+  "description": "Pinecone SERVERLESS (KEINE s1.x1-Hardware-Paritaet -- Account ohne Pod-Quota, Fallback), Stufe S0, Single-Query Latenz. In der Thesis als Limitation zu fuehren.",
+  "db": "pinecone",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "workload": "topk",
+  "index_name": "bench-s0-latency",
+  "index": {
+    "type": "serverless",
+    "params": {
+      "spec": "serverless",
+      "region": "aws-us-east-1",
+      "metric": "cosine"
+    }
+  },
+  "queries": {
+    "n": 2000,
+    "concurrency": 1
+  },
+  "pre_run_reset": false
+}
