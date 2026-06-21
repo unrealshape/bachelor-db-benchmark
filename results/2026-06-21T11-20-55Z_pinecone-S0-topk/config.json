@@ -1,0 +1,21 @@
+{
+  "name": "pinecone-S0-bench",
+  "db": "pinecone",
+  "stufe": "S0",
+  "dim": 1024,
+  "variant": "A",
+  "index_name": "bench-s0-bench",
+  "index": {
+    "type": "serverless",
+    "params": {
+      "spec": "serverless",
+      "region": "aws-us-east-1",
+      "metric": "cosine"
+    }
+  },
+  "queries": {
+    "n": 1000,
+    "concurrency": 1
+  },
+  "pre_run_reset": false
+}
